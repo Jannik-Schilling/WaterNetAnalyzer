@@ -13,7 +13,7 @@ email=jannik.schilling@uni-rostock.de
 about=This plugin can be used to create a network with one outlet, show catchment or flow path of a segment in the network and accumulate flow/loads along the flow path
 
 tracker=https://github.com/Jannik-Schilling/WaterNetAnalyzer/issues
-repository=https://github.com/Jannik-Schilling/WaterNetPlugin
+repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 # End of mandatory metadata
 
 # Recommended items:
@@ -25,7 +25,7 @@ hasProcessingProvider=yes
 # Tags are comma separated with spaces allowed
 tags=water, network, flow, load, net, catchment
 
-homepage=https://github.com/Jannik-Schilling/WaterNetPlugin
+homepage=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 category=Analysis
 icon=icons/icon.svg
 # experimental flag
