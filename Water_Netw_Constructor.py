@@ -121,7 +121,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         act_id = act_segm[2]
 
         '''mark segment as outlet'''
-        Marker= "O"
+        Marker= "Out"
         data_arr[np.where(data_arr[:,2]==act_segm[2])[0][0],3] = Marker
 
         '''store first segment and delete from data_arr'''
@@ -205,6 +205,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         fin_order = [int(f) for f in finished_segm[:,2]]
         finished_segm=finished_segm[np.array(fin_order).argsort()]
         finished_segm=np.c_[finished_segm, finished_segm[:,2]]
+        finished_segm[np.where(finished_segm[:,3] == 'unconnected'),4] = 'unconnected'
 
 
 
