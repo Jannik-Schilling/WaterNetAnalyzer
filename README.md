@@ -4,6 +4,7 @@
 * Download the Git repository as zip-File 
 * In QGIS3 go to Plugins > Manage and install Plugins > Install from ZIP
 * select downloaded zip-File
+
 The plugin should appear in your Processing Toolbox
 
 ## 1 Water Network Constructor
