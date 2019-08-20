@@ -1,0 +1,47 @@
+# This file contains metadata for your plugin.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=WaterNetAnalyzer
+qgisMinimumVersion=3.0
+description=Gerenate water network, get catchment/flow path
+version=0.1
+author=Jannik Schilling
+email=jannik.schilling@uni-rostock.de
+
+about=This plugin can be used to create a network with one outlet, show catchment or flow path of a segment in the network and accumulate flow/loads along the flow path
+
+tracker=https://github.com/Jannik-Schilling/WaterNetAnalyzer/issues
+repository=https://github.com/Jannik-Schilling/WaterNetPlugin
+# End of mandatory metadata
+
+# Recommended items:
+
+hasProcessingProvider=yes
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=water, network, flow, load, net, catchment
+
+homepage=https://github.com/Jannik-Schilling/WaterNetPlugin
+category=Analysis
+icon=icons/icon.svg
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
+# Since QGIS 3.8, a comma separated list of plugins to be installed
+# (or upgraded) can be specified.
+# Check the documentation for more information.
+# plugin_dependencies=
+
+Category of the plugin: Raster, Vector, Database or Web
+# category=Vector
+
+# If the plugin can run on QGIS Server.
+server=False
+
