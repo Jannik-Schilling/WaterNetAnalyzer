@@ -160,8 +160,9 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             column_to = ft.attributes()[idxNext]
             column_calc = ft.attributes()[idxCalc]
             Data = Data+[[column_ID,column_from,column_to,column_calc]]
-        DataArr = np.array(Data)
+        DataArr = np.array(Data, dtype='object')
         DataArr[np.where(DataArr[:,3] == NULL),3]=0
+        feedback.setProgressText(self.tr("Data loaded without problems\n "))
 
         '''segments with numbers'''
         calc_column = np.copy(DataArr[:,3]) #deep copy of column to do calculations on
