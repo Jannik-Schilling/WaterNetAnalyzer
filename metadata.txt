@@ -6,11 +6,11 @@
 name=WaterNetAnalyzer
 qgisMinimumVersion=3.0
 description=Gerenate water network, get catchment/flow path
-version=0.2
+version=0.3
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
-about=This plugin can be used to create a network with one outlet, show catchment or flow path of a segment in the network and accumulate flow/loads along the flow path
+about=This plugin can be used to create a network with one outlet, a warning is generated when circles are found in the network, show catchment or flow path of a segment in the network and accumulate flow/loads along the flow path
 
 tracker=https://github.com/Jannik-Schilling/WaterNetAnalyzer/issues
 repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
@@ -20,9 +20,14 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-# changelog=
-
+changelog=0.1 2019-08-16
+      - first version
+    0.2 2019-08-20
+      - Bug fixes
+    0.3 2019-08-22
+      - feedback about circles added
 # Tags are comma separated with spaces allowed
+
 tags=water, network, flow, load, net, catchment
 
 homepage=https://github.com/Jannik-Schilling/WaterNetAnalyzer

@@ -34,6 +34,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import *
 import processing
 import numpy as np
+from collections import Counter
 
 class WaterNetwConstructor(QgsProcessingAlgorithm):
     INPUT_LAYER = 'INPUT_LAYER'
@@ -94,7 +95,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
 
         '''get features'''
         rawFt = rawLayer.getFeatures()
-        Data=[]
+        Data = []
         for ft in rawFt:
             if feedback.isCanceled():
                 break
@@ -110,19 +111,19 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             SP2 = "".join(str(x) for x in vert2x)
             Data=Data+[[SP1,SP2]+[ft.id(),"NULL"]]
         data_arr = np.array(Data)
-        feedback.setProgressText(self.tr("Data loadad"))
+        feedback.setProgressText(self.tr("Data loaded without problems\n "))
 
 
         '''first segment'''
-        act_segm=data_arr[np.where(data_arr[:,2]==sel_feat_id)][0]
+        act_segm = data_arr[np.where(data_arr[:,2]==sel_feat_id)][0]
 
 
         '''id of actual/first segment'''
         act_id = act_segm[2]
 
         '''mark segment as outlet'''
-        Marker= "Out"
-        data_arr[np.where(data_arr[:,2]==act_segm[2])[0][0],3] = Marker
+        Marker = "Out"
+        data_arr[np.where(data_arr[:,2] == act_segm[2])[0][0],3] = Marker
 
         '''store first segment and delete from data_arr'''
         finished_segm = data_arr[np.where(data_arr[:,2]==sel_feat_id)]
@@ -143,18 +144,36 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             else:
                 n_segm=n_segm = np.array([])
                 conn_vert = 'None'
-            return(n_segm)
+            return([n_segm,conn_vert])
 
 
 
-        '''this will be a function of the plugin in the future...'''
-        def checkForCircles (ne_segm):
+
+        '''this function will find circles'''
+        def checkForCircles (ne_segm, conn_v):
             all_finished_pts = np.concatenate((finished_segm[:,0],finished_segm[:,1]))
-            circ_segm=ne_segm[np.all(np.isin(ne_segm[:,:2],all_finished_pts),axis=1)].tolist() #select if any vertex of ne_segm already is in finished_segm
-            return (circ_segm)
-        '''list to save circles if the algothm fins one''' 
-        circ_list = list()
+            all_act_pts = np.concatenate((ne_segm[:,0],ne_segm[:,1]))
+            pts_count = Counter(all_act_pts)
+            count_arr = np.array(list(pts_count.items()))
+            '''Option 1: any vertex of ne_segm already is in finished_segm'''
+            count_arr2 = np.delete(count_arr, np.where(count_arr[:,0] == conn_v)[0],0)
+            circ_segm1 = ne_segm[np.all(np.isin(ne_segm[:,:2],all_finished_pts),axis = 1)]
+            circ_segm2 = finished_segm[np.any(np.isin(finished_segm[:,:2],count_arr2[:,0]), axis= 1)]
+            circ_segm = np.array(circ_segm2.tolist()+circ_segm1.tolist())
+            if len (circ_segm) > 0:
+                circ_id = [circ_segm[:,2].tolist()]
+            else: 
+                circ_id = []
+            '''Option 2: two (or more) segments of ne_segm form a circle'''
+            if len(ne_segm) > 1:
+                count_arr3 = np.delete(count_arr, np.where(count_arr[:,1] == '1')[0],0)
+                circ_segm = ne_segm[np.all(np.isin(ne_segm[:,:2],count_arr3[:,0]),axis = 1)]
+                circ_id = circ_id + [circ_segm[:,2].tolist()]
+            circ_ids = [x for x in circ_id if x]
+            return (circ_ids)
 
+        '''list to save circles if the algothm finds one'''
+        circ_list = list() 
 
 
         ''' "do later list" with 'X' as marker'''
@@ -164,10 +183,12 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         i=1
         while len(data_arr) != 0:
             '''id of next segment'''
-            next_fts = nextftsConstr(act_segm)
+            next_data = nextftsConstr(act_segm)
+            next_fts = next_data[0]
+            conn_vertex = next_data[1]
             '''check for circles'''
             if len(next_fts)>0:
-                circ_segments = checkForCircles(next_fts)
+                circ_segments = checkForCircles(next_fts, conn_vertex)
                 circ_list = circ_list + circ_segments
             '''handle next features'''
             if len(next_fts) == 1:
@@ -176,10 +197,10 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 finished_segm = np.concatenate((finished_segm,next_fts))
                 data_arr = np.delete(data_arr,np.where(data_arr[:,2] == next_fts[:,2]),0)
                 ''' upstream segment'''
-                next_segm=next_fts[0]
+                next_segm = next_fts[0]
             if len(next_fts) == 0:
                 ''' upstream segment'''
-                next_segm=do_later[0]
+                next_segm = do_later[0]
                 do_later = do_later[1:]
             if len(next_fts) > 1:
                 next_fts[:,3] = str(act_id)
@@ -188,8 +209,8 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 data_arr = np.delete(data_arr,np.where(np.isin(data_arr[:,2],next_fts[:,2])),0)
                 ''' upstream segment'''
                 do_later = np.concatenate((next_fts[1:],do_later))
-                next_segm=next_fts[0]
-            if next_segm[0] =='X':
+                next_segm = next_fts[0]
+            if next_segm[0] == 'X':
                 break
             '''changing actual segment'''
             act_segm = next_segm
@@ -203,12 +224,16 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
 
         '''sort finished segments for output'''
         fin_order = [int(f) for f in finished_segm[:,2]]
-        finished_segm=finished_segm[np.array(fin_order).argsort()]
-        finished_segm=np.c_[finished_segm, finished_segm[:,2]]
+        finished_segm = finished_segm[np.array(fin_order).argsort()]
+        finished_segm = np.c_[finished_segm, finished_segm[:,2]]
         finished_segm[np.where(finished_segm[:,3] == 'unconnected'),4] = 'unconnected'
 
 
-
+        '''feedback for circles'''
+        if len (circ_list)>0:
+            feedback.reportError("Warning: Circle closed at NET_ID = ")
+            for c in circ_list:
+                feedback.reportError(self.tr('{0}, ').format(str(c)))
 
         '''sink definition'''
         (sink, dest_id) = self.parameterAsSink(
