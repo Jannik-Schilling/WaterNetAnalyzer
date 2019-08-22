@@ -10,7 +10,7 @@ version=0.3
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
-about=This plugin can be used to create a network with one outlet, a warning is generated when circles are found in the network, show catchment or flow path of a segment in the network and accumulate flow/loads along the flow path
+about=This plugin creates a network with one outlet from a line shapfile. A warning is generated when circles are found in the network. You can use the tools to show the catchment or flow path of a segment in the network and accumulate flow/loads along the flow path
 
 tracker=https://github.com/Jannik-Schilling/WaterNetAnalyzer/issues
 repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
