@@ -5,7 +5,8 @@
 * In QGIS3 go to Plugins > Manage and install Plugins > Install from ZIP
 * select downloaded zip-File
 
-The plugin should appear in your Processing Toolbox
+The plugin should appear in your Processing Toolbox. 
+An example line layer can be found in [the testdata folder](/testdata)
 
 ## 1 Water Network Constructor
 The first one adds information about connections in the network to the attribute table (the simple algorithm is shown in the figure below). You just have to select the undermost line segment (e.g. in a sewage system it´s the last one before entering a treatment plant, in a river system it´s the river mouth) and click on "Run". 
