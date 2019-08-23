@@ -23,7 +23,7 @@ If the algorithm find circles you´ll get a warning in the processing feedback w
 ## 2 Select catchment or flow path
 The second tool uses the columns created by *1 Water Network Constructor* to find the catchment or flow path of a selected line segment in the water network. As the algorithm uses the QGIS feature id, it doesn´t work with temporary layers. So you´ll have to save the result from *1 Water Network Constructor* somewhere before running *2 Select catchment or flow path*. 
 
-You can also chose other columns than "NET_ID","NET_TO" and "NET_FROM" if you have this information already in your attribute table.
+You can also choose other columns than "NET_ID","NET_TO" and "NET_FROM" if you have this information already in your attribute table.
 
 ## 3 Calculate along flow path
 This tool can calculate how amounts of water or other loads are accumulated along the flow path. As well as *2 Select catchment or flow path* this doesn´t work with temporary layers
