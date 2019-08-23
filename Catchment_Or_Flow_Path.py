@@ -124,6 +124,7 @@ class CatchmentOrFlowPath(QgsProcessingAlgorithm):
 
         
         '''loading the network'''
+        feedback.setProgressText(self.tr("Loading network\n "))
         waternet = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
         allFt = waternet.getFeatures()
 
@@ -154,14 +155,15 @@ class CatchmentOrFlowPath(QgsProcessingAlgorithm):
         catchOrPathNum = self.parameterAsString(parameters, self.INPUT_Sect, context)
         if catchOrPathNum == "0":
             Section = 'C'
+            Section_long = 'catchment'
         if catchOrPathNum == "1":
             Section = 'FP'
+            Section_long = 'flow path'
         total = 100.0 / source.featureCount() if source.featureCount() else 0 #the feedback-bar has to be set up properly!!!
         
         '''load data from layer "waternet" '''
         Data = []
-        i = 1
-        for ft in allFt:
+        for (i,ft) in enumerate(allFt):
             if feedback.isCanceled():
                 break
             column_ID = ft.attributes()[idxId]
@@ -169,26 +171,8 @@ class CatchmentOrFlowPath(QgsProcessingAlgorithm):
             column_to = ft.attributes()[idxNext]
             Data = Data+[[column_ID,column_from,column_to]]
             feedback.setProgress(total*i)
-            i += 1
-        i=1
-
-
-
-        for Dat in Data:
-            if feedback.isCanceled():
-                break
-            if isinstance(Dat[0], float):
-                Dat[0]=str(round(Dat[0]))
-            if isinstance(Dat[1], float):
-                Dat[1]=str(round(Dat[1]))
-            if isinstance(Dat[2], float):
-                Dat[2]=str(round(Dat[2]))
-            feedback.setProgress(total*i)
-            i += 1
-        del i
-        feedback.setProgress(22)
-        DataArr = np.array(Data) # safe Data as numpy array
-        feedback.setProgress(33)
+        DataArr = np.array(Data, dtype= 'U20') # safe Data as numpy array
+        feedback.setProgressText(self.tr("Data loaded\n Calculating {0}\n").format(str(Section_long)))
 
         '''this was planned as an option: should the first selected segment be part of the final selection?
         at the moment it´s permanently part of the final selection'''
@@ -251,9 +235,8 @@ class CatchmentOrFlowPath(QgsProcessingAlgorithm):
             set1=net_route[:200]
             sel=sel+[set1]
             net_route=net_route[200:]
-        feedback.setProgress(77)
-            
-       
+
+
         waternet.removeSelection() # current selection is removed before new selection
         if len(sel) != 0:
             total2 = 100/len(sel)

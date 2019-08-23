@@ -71,15 +71,18 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
         raw_fields = rawLayer.fields()
 
+        '''Counter for the progress bar'''
+        total = rawLayer.featureCount()
+        parts = 100/total 
 
         '''check if one feature is selected'''
         selFeat = rawLayer.selectedFeatures() #selected Feature
         if not selFeat:
             feedback.reportError(self.tr('{0}: No segment selected. Please select outlet in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
-            raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT_LAYER))
+            raise QgsProcessingException()
         if len(selFeat) > 1:
             feedback.reportError(self.tr('{0}: Too many segments selected. Please select outlet in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
-            raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT_LAYER))
+            raise QgsProcessingException()
         sel_feat_id = str(selFeat[0].id())
 
 
@@ -94,37 +97,36 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         out_fields.append(QgsField('NET_FROM', QVariant.String))
 
         '''get features'''
+        feedback.setProgressText(self.tr("Loading line layer\n "))
         rawFt = rawLayer.getFeatures()
         Data = []
-        for ft in rawFt:
+        for (i,ft) in enumerate(rawFt):
             if feedback.isCanceled():
                 break
             ge = ft.geometry()
             if ge.isMultipart():
                 vert1 = ge.asMultiPolyline()[0][0]
-                vert1x = [round(vert1.x()),"_",round(vert1.y())]
                 vert2 = ge.asMultiPolyline()[0][-1]
-                vert2x = [round(vert2.x()),"_",round(vert2.y())]
             else: 
-                pass
+                vert1 = ge.asPolyline()[0]
+                vert2 = ge.asPolyline()[-1]
+            vert1x = [str(vert1.x())[:12],"_",str(vert1.y())[:12]]
+            vert2x = [str(vert2.x())[:12],"_",str(vert2.y())[:12]]
             SP1 = "".join(str(x) for x in vert1x)
             SP2 = "".join(str(x) for x in vert2x)
             Data=Data+[[SP1,SP2]+[ft.id(),"NULL"]]
+            feedback.setProgress((i+1)*parts)
         data_arr = np.array(Data)
         feedback.setProgressText(self.tr("Data loaded without problems\n "))
 
 
         '''first segment'''
         act_segm = data_arr[np.where(data_arr[:,2]==sel_feat_id)][0]
-
-
         '''id of actual/first segment'''
         act_id = act_segm[2]
-
         '''mark segment as outlet'''
         Marker = "Out"
         data_arr[np.where(data_arr[:,2] == act_segm[2])[0][0],3] = Marker
-
         '''store first segment and delete from data_arr'''
         finished_segm = data_arr[np.where(data_arr[:,2]==sel_feat_id)]
         data_arr = np.delete(data_arr, np.where(data_arr[:,2]==act_id)[0],0)
@@ -145,8 +147,6 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 n_segm=n_segm = np.array([])
                 conn_vert = 'None'
             return([n_segm,conn_vert])
-
-
 
 
         '''this function will find circles'''
@@ -173,15 +173,14 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             return (circ_ids)
 
         '''list to save circles if the algothm finds one'''
-        circ_list = list() 
-
-
+        circ_list = list()
         ''' "do later list" with 'X' as marker'''
         do_later=np.array([['X','X','X','X']])
 
-
         i=1
         while len(data_arr) != 0:
+            if feedback.isCanceled():
+                break # Stop the algorithm if cancel button has been clicked
             '''id of next segment'''
             next_data = nextftsConstr(act_segm)
             next_fts = next_data[0]
@@ -215,11 +214,13 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             '''changing actual segment'''
             act_segm = next_segm
             act_id = act_segm[2]
+            feedback.setProgress(len(finished_segm)/total*100)
 
 
         '''unconnected features'''
         data_arr[:,3] = 'unconnected'
         finished_segm = np.concatenate((finished_segm,data_arr))
+        feedback.setProgressText(self.tr('network generated with {0} unconnected segments').format(str(len(data_arr))))
 
 
         '''sort finished segments for output'''

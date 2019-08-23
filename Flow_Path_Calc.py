@@ -136,6 +136,9 @@ class FlowPathCalc(QgsProcessingAlgorithm):
         '''loading the network'''
         waternet = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
         allFt = waternet.getFeatures()
+        '''Counter for the progress bar'''
+        total = waternet.featureCount()
+        parts = 100/total 
 
         '''names of fields for id,next segment, previous segment'''
         id_field = self.parameterAsString(parameters, self.INPUT_FIELD_ID, context)
@@ -151,8 +154,9 @@ class FlowPathCalc(QgsProcessingAlgorithm):
 
 
         '''load data from layer "waternet" '''
+        feedback.setProgressText(self.tr("Loading network layer\n "))
         Data = []
-        for ft in allFt:
+        for (i,ft) in enumerate(allFt):
             if feedback.isCanceled():
                 break
             column_ID = ft.attributes()[idxId]
@@ -160,9 +164,10 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             column_to = ft.attributes()[idxNext]
             column_calc = ft.attributes()[idxCalc]
             Data = Data+[[column_ID,column_from,column_to,column_calc]]
+            feedback.setProgress((i+1)*parts)
         DataArr = np.array(Data, dtype='object')
         DataArr[np.where(DataArr[:,3] == NULL),3]=0
-        feedback.setProgressText(self.tr("Data loaded without problems\n "))
+        feedback.setProgressText(self.tr("Data loaded \n Calculating flow paths \n"))
 
         '''segments with numbers'''
         calc_column = np.copy(DataArr[:,3]) #deep copy of column to do calculations on
@@ -196,17 +201,20 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 i=i+1
             return (out)
 
-
-        while len(calc_segm)>0:
+        total2 = len(calc_segm)
+        while len(calc_segm) > 0:
+            if feedback.isCanceled():
+                break
             StartRow = calc_segm[0]
             amount = calc_column[StartRow] # amount to add to flow path
             calc_column[StartRow] = 0 #"delete" calculated amount from list (set 0)
             Fl_pth = FlowPath(StartRow, amount) # get flow path of StartRow 
-            if len(Fl_pth)==2:
+            if len(Fl_pth)== 2:
                 calc_segm = calc_segm + Fl_pth[1] # if flow path devides add new segments to calc_segm
-            DataArr[Fl_pth[0],3]= DataArr[Fl_pth[0],3]+amount # Add the amount to the calculated flow path
+            DataArr[Fl_pth[0],3] = DataArr[Fl_pth[0],3]+amount # Add the amount to the calculated flow path
             calc_segm = calc_segm[1:] # delete used segment
             calc_segm = list(set(calc_segm)) #delete duplicate values
+            feedback.setProgress((1-(len(calc_segm)/total2))*100)
 
 
 
@@ -220,6 +228,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             source.sourceCrs())
 
         '''create output / add features to sink'''
+        feedback.setProgressText(self.tr("creating output \n"))
         features = waternet.getFeatures()
 #        i=0
         for (i,feature) in enumerate(features):
@@ -232,8 +241,8 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             outFt.setAttributes(feature.attributes())
             outFt.setAttribute(idxCalc,DataArr[i,3])
             sink.addFeature(outFt, QgsFeatureSink.FastInsert)
+            feedback.setProgress((i+1)*parts)
 
-        
         return {self.OUTPUT: dest_id}
 
         del nextFtsCalc
