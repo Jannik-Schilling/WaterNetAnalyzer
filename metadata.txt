@@ -35,7 +35,8 @@ changelog=0.1 2019-08-16
       - flow path calculation now adds a new field for result
     1.1 2019-09-17
       - calculation limited to numeric values
-      - rename of catchment/flow path
+      - rename of catchment/flow path to upstream/downstream
+      - bugfix: flow path of unconnected segments
       
 # Tags are comma separated with spaces allowed
 
