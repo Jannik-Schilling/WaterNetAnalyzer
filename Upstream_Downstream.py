@@ -145,12 +145,15 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
             startF = waternet.selectedFeatures()  # feature to start with
             startId = startF[0].id() # id of startF
             if startF[0].attributes()[idxId] != NULL:
-                StartMarker =  startF[0].attributes()[idxId] 
+                StartMarker =  startF[0].attributes()[idxId]
+            if startF[0].attributes()[idxNext] == 'unconnected':
+                feedback.reportError(self.tr('{0}: Unconnected segment selected. Please select another segment in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
+                raise QgsProcessingException()
             #the error messages have to be revised
             
-        '''selection: catchment or flow path
-        catchment: 1
-        flow path: 0
+        '''selection: flow path upstream/downstream
+        downstream: 1
+        upstream: 0
         '''
         catchOrPathNum = self.parameterAsString(parameters, self.INPUT_Sect, context)
         if catchOrPathNum == "0":
@@ -184,11 +187,11 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
             net_route = [startId]
 
 
-        '''find flow path or catchment'''
+        '''find flow path upstream or downstream'''
         MARKER=str(StartMarker) # NET_ID of first segment
         safe=["X"] #a list to safe segments when the net separates; "X" indicates an empty list and works as a MARKER for the while loop below
         forks = [] # a list for forks in flow path...because forks are interesting....
-        origins = [] # a list for origins/river heads in the catchment
+        origins = [] # a list for origins/river heads upstream
 
         def nextFtsSel (Sect, MARKER2):
             if Sect == 'U':
