@@ -1,9 +1,13 @@
 # WaterNetAnalyzer
 ....is a QGIS3 plugin to create a water network (sewer network, river network) from a line layer (shapefile). So far the plugin provides three tools. 
 **Installation:** 
-* Download the Git repository as zip-File 
-* In QGIS3 go to Plugins > Manage and install Plugins > Install from ZIP
-* select downloaded zip-File
+* *Option 1: from zip-File (latest Versions will appear here first)*
+** Download the Git repository as zip-File 
+** In QGIS3 go to Plugins > Manage and install Plugins > Install from ZIP
+** select downloaded zip-File
+* *Option 2: from Qgis Plugin Manager*
+** In QGIS3 go to Plugins > Manage and install Plugins 
+** search for 'WaterNetAnalyzer' and directly install by clicking on 'install plugin' 
 
 The plugin should appear in your Processing Toolbox. 
 An example line layer can be found in [the testdata folder](/testdata)
