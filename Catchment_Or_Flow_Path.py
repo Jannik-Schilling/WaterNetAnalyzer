@@ -166,12 +166,13 @@ class CatchmentOrFlowPath(QgsProcessingAlgorithm):
         for (i,ft) in enumerate(allFt):
             if feedback.isCanceled():
                 break
-            column_ID = ft.attributes()[idxId]
-            column_from = ft.attributes()[idxPrev]
-            column_to = ft.attributes()[idxNext]
-            Data = Data+[[column_ID,column_from,column_to]]
+            column_ID = str(ft.attributes()[idxId])
+            column_from = str(ft.attributes()[idxPrev])
+            column_to = str(ft.attributes()[idxNext])
+            qgis_ID = ft.id()
+            Data = Data+[[column_ID,column_from,column_to,qgis_ID]]
             feedback.setProgress(total*i)
-        DataArr = np.array(Data, dtype= 'U20') # safe Data as numpy array
+        DataArr = np.array(Data, dtype= 'object') # safe Data as numpy array
         feedback.setProgressText(self.tr("Data loaded\n Calculating {0}\n").format(str(Section_long)))
 
         '''this was planned as an option: should the first selected segment be part of the final selection?
@@ -207,9 +208,9 @@ class CatchmentOrFlowPath(QgsProcessingAlgorithm):
             next_rows = nextFtsSel (Section, MARKER)
             if len (next_rows) > 0: # sometimes segments are saved in net_route...then they are deleted
                 for Z in next_rows: 
-                    if Z in net_route:
+                    if DataArr[Z,3] in net_route:
                         next_rows.remove(Z)
-            net_route = net_route + next_rows
+                net_route = net_route + DataArr[next_rows,3].tolist()
             if len(next_rows) > 1:
                 if Section == 'FP':
                     forks = forks + [MARKER]
@@ -225,7 +226,6 @@ class CatchmentOrFlowPath(QgsProcessingAlgorithm):
             feedback.setProgress(total*i)
             i+=1
         del i
-
 
         ''' the route is now separated into blocks of 200 segments to make the selection process faster'''
         sel=[]

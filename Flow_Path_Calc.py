@@ -30,7 +30,7 @@ __copyright__ = '(C) 2019 by Jannik Schilling'
 
 __revision__ = '$Format:%H$'
 
-from qgis.PyQt.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import *
 import processing
 import numpy as np
@@ -136,6 +136,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
         '''loading the network'''
         waternet = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
         allFt = waternet.getFeatures()
+        wnet_fields = waternet.fields()
         '''Counter for the progress bar'''
         total = waternet.featureCount()
         parts = 100/total 
@@ -159,9 +160,9 @@ class FlowPathCalc(QgsProcessingAlgorithm):
         for (i,ft) in enumerate(allFt):
             if feedback.isCanceled():
                 break
-            column_ID = ft.attributes()[idxId]
-            column_from = ft.attributes()[idxPrev]
-            column_to = ft.attributes()[idxNext]
+            column_ID = str(ft.attributes()[idxId])
+            column_from = str(ft.attributes()[idxPrev])
+            column_to = str(ft.attributes()[idxNext])
             column_calc = ft.attributes()[idxCalc]
             Data = Data+[[column_ID,column_from,column_to,column_calc]]
             feedback.setProgress((i+1)*parts)
@@ -216,6 +217,14 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             calc_segm = list(set(calc_segm)) #delete duplicate values
             feedback.setProgress((1-(len(calc_segm)/total2))*100)
 
+        '''add new field'''
+        new_field_name = 'calc_'+calc_field
+        #define new fields
+        out_fields = QgsFields()
+        #append fields
+        for field in wnet_fields:
+            out_fields.append(QgsField(field.name(), field.type()))
+        out_fields.append(QgsField(new_field_name, QVariant.Double))
 
 
         '''sink definition'''
@@ -223,7 +232,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             parameters,
             self.OUTPUT,
             context,
-            source.fields(),
+            out_fields,
             source.wkbType(),
             source.sourceCrs())
 
@@ -239,7 +248,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             outFt = QgsFeature()
             outFt.setGeometry(feature.geometry())
             outFt.setAttributes(feature.attributes())
-            outFt.setAttribute(idxCalc,DataArr[i,3])
+            outFt.setAttributes(feature.attributes()+[DataArr[i,3]])
             sink.addFeature(outFt, QgsFeatureSink.FastInsert)
             feedback.setProgress((i+1)*parts)
 
