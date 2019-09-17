@@ -6,7 +6,7 @@
 name=WaterNetAnalyzer
 qgisMinimumVersion=3.0
 description=Gerenate water network, get catchment/flow path
-version=0.5
+version=1.0
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
@@ -30,7 +30,7 @@ changelog=0.1 2019-08-16
       - progress bar and process information added to feedback
       - functionality for non-multiline-layer
       - bugfix for layers in certain CRS
-    0.5 2019-09-17
+    1.0 2019-09-17
       - tools work with temporary layers
       - flow path calculation now adds a new field for result
 # Tags are comma separated with spaces allowed
