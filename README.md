@@ -24,8 +24,8 @@ The tool will create three new columns in the attribute table:
 
 If the algorithm finds circles you´ll get a warning in the processing feedback with information about the segments which closed the circle. You can edit "NET_TO" and "NET_FROM" manually to change flow directions an even ad "forks" to your network.
 
-## 2 Select catchment or flow path
-The second tool uses the columns created by *1 Water Network Constructor* to find the catchment or flow path of a selected line segment in the water network. 
+## 2 Flow path upstream/downstream
+The second tool uses the columns created by *1 Water Network Constructor* to find the upstream or downstream flow path of a selected line segment in the water network. 
 You can also choose other columns than "NET_ID","NET_TO" and "NET_FROM" if you have this information already in your attribute table.
 
 ## 3 Calculate along flow path
