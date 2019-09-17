@@ -85,7 +85,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_CALC,
                 self.tr("Field to calculate"),
                 parentLayerParameterName = self.INPUT_LAYER,
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.Numeric,
             )
         )
         

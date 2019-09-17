@@ -31,7 +31,7 @@ __copyright__ = '(C) 2019 by Jannik Schilling'
 __revision__ = '$Format:%H$'
 
 from qgis.core import QgsProcessingProvider
-from .Catchment_Or_Flow_Path import CatchmentOrFlowPath
+from .Upstream_Downstream import UpstreamDownstream
 from .Water_Netw_Constructor import WaterNetwConstructor
 from .Flow_Path_Calc import FlowPathCalc
 from qgis.PyQt.QtGui import QIcon
@@ -58,7 +58,7 @@ class WaterNetsProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        self.addAlgorithm(CatchmentOrFlowPath())
+        self.addAlgorithm(UpstreamDownstream())
         self.addAlgorithm(WaterNetwConstructor())
         self.addAlgorithm(FlowPathCalc())
         # add additional algorithms here
