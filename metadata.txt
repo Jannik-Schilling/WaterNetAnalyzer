@@ -5,7 +5,7 @@
 [general]
 name=WaterNetAnalyzer
 qgisMinimumVersion=3.0
-description=Gerenate water network, get flow path upstream/downstream
+description=Generate water network, get flow path upstream/downstream
 version=1.1
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
