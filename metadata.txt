@@ -20,7 +20,9 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=1.1 2019-09-17
+changelog=1.2 2019-11-11
+      - new metadata
+    1.1 2019-09-17
       - calculation limited to numeric values
       - rename of catchment/flow path to upstream/downstream
       - bugfix: flow path of unconnected segments
