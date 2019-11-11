@@ -6,7 +6,7 @@
 name=WaterNetAnalyzer
 qgisMinimumVersion=3.0
 description=Generate water network, get flow path upstream/downstream
-version=1.1
+version=1.2
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
@@ -20,23 +20,17 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=0.1 2019-08-16
-      - first version
-    0.2 2019-08-20
-      - Bug fixes
-    0.3 2019-08-22
-      - feedback about circles added to 1 Water Network constructor
+changelog=1.1 2019-09-17
+      - calculation limited to numeric values
+      - rename of catchment/flow path to upstream/downstream
+      - bugfix: flow path of unconnected segments
+    1.0 2019-09-17
+      - tools work with temporary layers
+      - flow path calculation now adds a new field for result
     0.4 2019-08-23
       - progress bar and process information added to feedback
       - functionality for non-multiline-layer
       - bugfix for layers in certain CRS
-    1.0 2019-09-17
-      - tools work with temporary layers
-      - flow path calculation now adds a new field for result
-    1.1 2019-09-17
-      - calculation limited to numeric values
-      - rename of catchment/flow path to upstream/downstream
-      - bugfix: flow path of unconnected segments
       
 # Tags are comma separated with spaces allowed
 
