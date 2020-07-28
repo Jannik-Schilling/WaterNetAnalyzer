@@ -172,7 +172,10 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 feedback.reportError(self.tr('The selected segment is connecting two segments. Please chose another segment in layer "{0}" or add a segment as a single outlet').format(parameters[self.INPUT_LAYER]))
                 raise QgsProcessingException()
             else:
-                flip_list = [act_id]
+                if len(id_field) == 0:
+                    flip_list = [act_id]
+                else:
+                    flip_list = [act_segm[4]]
                 vert_save = np.copy(act_segm[0])
                 act_segm[0] = act_segm[1]
                 act_segm[1] = vert_save
@@ -191,7 +194,10 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                         vert_save = np.copy(n_segm0[:,0])
                         n_segm0[:,0] = n_segm0[:,1]
                         n_segm0[:,1] = vert_save
-                        flp_list = flp_list + n_segm0[:,2].tolist()
+                        if len(id_field) == 0:
+                            flp_list = flp_list + n_segm0[:,2].tolist()
+                        else:
+                            flp_list = flp_list + n_segm0[:,4].tolist()
                     n_segm = np.concatenate((n_segm1,n_segm0))
                 else:
                     n_segm=n_segm = np.array([])
