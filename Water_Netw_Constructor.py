@@ -39,6 +39,7 @@ from collections import Counter
 class WaterNetwConstructor(QgsProcessingAlgorithm):
     INPUT_LAYER = 'INPUT_LAYER'
     FLIP_OPTION = 'FLIP_OPTION'
+    INPUT_ID_COL = 'INPUT_ID_COL'
     OUTPUT = 'OUTPUT'
 
     def initAlgorithm(self, config=None):
@@ -54,7 +55,16 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 self.FLIP_OPTION,
                 self.tr("Flip lines according to flow direction?"),
                 ['yes','no'],
-				defaultValue=[0]
+                defaultValue=[0]
+            )
+        )
+        self.addParameter(
+            QgsProcessingParameterField(
+                self.INPUT_ID_COL,
+                self.tr("Existing ID Column"),
+                parentLayerParameterName = self.INPUT_LAYER,
+                type = QgsProcessingParameterField.Any,
+                optional = True
             )
         )
         self.addParameter(
@@ -71,7 +81,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         )
         
         flip_opt = self.parameterAsString(parameters, self.FLIP_OPTION, context)
-
+        
         raw_layer = self.parameterAsVectorLayer(
             parameters,
             self.INPUT_LAYER,
@@ -84,6 +94,14 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         '''Counter for the progress bar'''
         total = raw_layer.featureCount()
         parts = 100/total 
+
+        '''optional: Existing ID field'''
+        id_field = self.parameterAsString(parameters, self.INPUT_ID_COL, context)
+        if len(id_field) == 0:
+            pass
+        else:
+            idxid = raw_layer.fields().indexFromName(id_field)
+
 
         '''check if one feature is selected'''
         sel_feat = raw_layer.selectedFeatures() #selected Feature
@@ -122,13 +140,20 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             vert2x = [str(vert2.x())[:15],"_",str(vert2.y())[:15]]
             SP1 = "".join(str(x) for x in vert1x)
             SP2 = "".join(str(x) for x in vert2x)
-            data_list = data_list + [[SP1,SP2]+[ft.id(),"NULL"]]
+            if len(id_field) == 0:
+                data_list = data_list + [[SP1,SP2]+[ft.id(),"NULL"]]
+            else:
+                column_id = str(ft.attributes()[idxid])
+                data_list = data_list + [[SP1,SP2]+[column_id,"NULL",ft.id()]]
             feedback.setProgress((i+1)*parts)
         data_arr = np.array(data_list)
         feedback.setProgressText(self.tr("Data loaded without problems\n "))
 
         '''id of actual/first segment'''
-        act_id = str(sel_feat[0].id())
+        if len(id_field) == 0:
+            act_id = str(sel_feat[0].id())
+        else:
+            act_id = str(sel_feat[0].attributes()[idxid])
 
         '''first segment'''
         act_segm = data_arr[np.where(data_arr[:,2] == act_id)][0]
@@ -201,7 +226,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         circ_list = list()
 
         ''' "do later list" with 'X' as marker'''
-        do_later=np.array([['X','X','X','X']])
+        do_later=np.array([np.repeat('X',len(act_segm))])
 
         i=1
         while len(data_arr) != 0:
@@ -249,7 +274,11 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
 
 
         '''sort finished segments for output'''
-        fin_order = [int(f) for f in finished_segm[:,2]]
+        if len(id_field) == 0:
+            fin_order = [int(f) for f in finished_segm[:,2]]
+        else:
+            fin_order = [int(f) for f in finished_segm[:,4]]
+            finished_segm = np.delete(finished_segm, 4,1)
         finished_segm = finished_segm[np.array(fin_order).argsort()]
         finished_segm = np.c_[finished_segm, finished_segm[:,2]]
         finished_segm[np.where(finished_segm[:,3] == 'unconnected'),4] = 'unconnected'
