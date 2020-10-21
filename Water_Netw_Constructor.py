@@ -236,6 +236,8 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
 
         i=1
         while len(data_arr) != 0:
+            if feedback.isCanceled():
+                    break
             '''id of next segment'''
             next_data = nextftsConstr(act_segm, flip_list)
             next_fts = next_data[0]
@@ -270,6 +272,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             '''changing actual segment'''
             act_segm = next_segm
             act_id = act_segm[2]
+            feedback.setProgress(100*(1-(len(data_arr)/total)))
 
 
 
@@ -357,7 +360,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         return self.tr(self.name())
 
     def group(self):
-        return self.tr()
+        return self.tr(self.groupId())
 
     def groupId(self):
         return ''
