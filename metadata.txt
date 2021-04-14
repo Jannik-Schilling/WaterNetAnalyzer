@@ -6,11 +6,11 @@
 name=WaterNetAnalyzer
 qgisMinimumVersion=3.0
 description=Generate water network, get flow path upstream/downstream
-version=1.6
+version=1.7
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
-about=This plugin creates a network with one outlet from a line layer (shapefile). A warning is generated when circles are found in the network. You can use the tools to show the flow path upstream or downstream of a segment in the network and accumulate flow/loads along the flow path.
+about=This plugin creates a network with one outlet from a line layer (shapefile). A warning is generated when circles are found in the network. You can use the tools to show the flow path upstream or downstream of a segment in the network and accumulate flow/loads along the flow path. An instructional video can be found here: https://www.youtube.com/watch?v=3GBr57evQPI  (thanks to  Hans van der Kwast)
 
 tracker=https://github.com/Jannik-Schilling/WaterNetAnalyzer/issues
 repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
@@ -20,7 +20,10 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=1.6 2020-10-21
+changelog=1.7 2021-04
+      - updated meta information
+      - deletion of unused code
+    1.6 2020-10-21
       - fix for the tr()-issue
     1.5 2020-07-28
       - updated icon
