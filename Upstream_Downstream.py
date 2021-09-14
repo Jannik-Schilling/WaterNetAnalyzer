@@ -162,22 +162,13 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
         if catchOrPathNum == "1":
             Section = 'D'
             Section_long = 'downstream'
-        total = 100.0 / source.featureCount() if source.featureCount() else 0 #the feedback-bar has to be set up properly!!!
+        feedback.setProgress(2)
         
         '''load data from layer "waternet" '''
-        Data = []
-        for (i,ft) in enumerate(allFt):
-            if feedback.isCanceled():
-                break
-            column_ID = str(ft.attributes()[idxId])
-            column_from = str(ft.attributes()[idxPrev])
-            column_to = str(ft.attributes()[idxNext])
-            qgis_ID = ft.id()
-            Data = Data+[[column_ID,column_from,column_to,qgis_ID]]
-            feedback.setProgress(total*i)
+        Data = [[str(f.attribute(idxId)),str(f.attribute(idxPrev)),str(f.attribute(idxNext)),f.id()] for f in waternet.getFeatures()]
         DataArr = np.array(Data, dtype= 'object') # safe Data as numpy array
         feedback.setProgressText(self.tr("Data loaded\n Calculating {0}\n").format(str(Section_long)))
-
+        feedback.setProgress(20)
         '''this was planned as an option: should the first selected segment be part of the final selection?
         at the moment it´s permanently part of the final selection'''
         first_in_selection = True
@@ -205,6 +196,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
             return(rows_connect)
 
         i=1
+        total = 70 / source.featureCount() if source.featureCount() else 0 # for feedback between 20% and 90%
         while str(MARKER) != 'X':
             if feedback.isCanceled():
                 break
@@ -226,11 +218,13 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                     origins = origins + [MARKER]
                 MARKER = safe[-1] #change MARKER to the last "saved" NET_ID
                 safe=safe[:-1] #delete used NET_ID from "safe"-list
-            feedback.setProgress(total*i)
+            feedback.setProgress(20+total*i)
             i+=1
         del i
-
+        
         ''' the route is now separated into blocks of 200 segments to make the selection process faster'''
+        feedback.setProgressText(self.tr("Selecting features"))
+        feedback.setProgress(91)
         sel=[]
         while len(net_route) != 0:
             if feedback.isCanceled():

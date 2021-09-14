@@ -124,11 +124,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
 
         '''get features'''
         feedback.setProgressText(self.tr("Loading line layer\n "))
-        raw_ft = raw_layer.getFeatures()
-        data_list = []
-        for (i,ft) in enumerate(raw_ft):
-            if feedback.isCanceled():
-                    break
+        def get_features_data(ft):
             ge = ft.geometry()
             if ge.isMultipart():
                 vert1 = ge.asMultiPolyline()[0][0]
@@ -141,11 +137,11 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             SP1 = "".join(str(x) for x in vert1x)
             SP2 = "".join(str(x) for x in vert2x)
             if len(id_field) == 0:
-                data_list = data_list + [[SP1,SP2]+[ft.id(),"NULL"]]
+                return [SP1,SP2,ft.id(),"NULL"]
             else:
-                column_id = str(ft.attributes()[idxid])
-                data_list = data_list + [[SP1,SP2]+[column_id,"NULL",ft.id()]]
-            feedback.setProgress((i+1)*parts)
+                column_id = str(ft.attribute(idxid))
+                return [SP1,SP2,column_id,"NULL",ft.id()]
+        data_list = [get_features_data(f) for f in raw_layer.getFeatures()]
         data_arr = np.array(data_list)
         feedback.setProgressText(self.tr("Data loaded without problems\n "))
 
