@@ -135,7 +135,6 @@ class FlowPathCalc(QgsProcessingAlgorithm):
         
         '''loading the network'''
         waternet = self.parameterAsVectorLayer(parameters, self.INPUT_LAYER, context)
-        allFt = waternet.getFeatures()
         wnet_fields = waternet.fields()
         '''Counter for the progress bar'''
         total = waternet.featureCount()
@@ -156,16 +155,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
 
         '''load data from layer "waternet" '''
         feedback.setProgressText(self.tr("Loading network layer\n "))
-        Data = []
-        for (i,ft) in enumerate(allFt):
-            if feedback.isCanceled():
-                break
-            column_ID = str(ft.attributes()[idxId])
-            column_from = str(ft.attributes()[idxPrev])
-            column_to = str(ft.attributes()[idxNext])
-            column_calc = ft.attributes()[idxCalc]
-            Data = Data+[[column_ID,column_from,column_to,column_calc]]
-            feedback.setProgress((i+1)*parts)
+        Data = [[str(f.attribute(idxId)),str(f.attribute(idxPrev)),str(f.attribute(idxNext)),f.attribute(idxCalc)] for f in waternet.getFeatures()]
         DataArr = np.array(Data, dtype='object')
         DataArr[np.where(DataArr[:,3] == NULL),3]=0
         feedback.setProgressText(self.tr("Data loaded \n Calculating flow paths \n"))
