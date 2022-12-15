@@ -4,9 +4,9 @@
 
 [general]
 name=WaterNetAnalyzer
-qgisMinimumVersion=3.0
+qgisMinimumVersion=3.18
 description=Generate water network, get flow path upstream/downstream
-version=1.7
+version=1.8
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
@@ -20,7 +20,8 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=1.7 2021-04
+changelog=1.8. 2022-12 improved processing feedback
+    1.7 2021-04
       - updated meta information
       - deletion of unused code
     1.6 2020-10-21

@@ -291,9 +291,9 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
 
         '''feedback for circles'''
         if len (circ_list)>0:
-            feedback.reportError("Warning: Circle closed at NET_ID = ")
+            feedback.pushWarning("Warning: Circle closed at NET_ID = ")
             for c in circ_list:
-                feedback.reportError(self.tr('{0}, ').format(str(c)))
+                feedback.pushWarning(self.tr('{0}, ').format(str(c)))
                 
                 
                 
