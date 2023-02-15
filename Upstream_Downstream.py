@@ -139,17 +139,21 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
         idxNext = waternet.fields().indexFromName(next_field)
 
         '''getting the selected segment'''
-        if waternet.selectedFeatureCount() != 1:
-            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        startF = waternet.selectedFeatures()  # feature to start with
+        if not startF:
+            feedback.reportError(self.tr('{0}: No segment selected. Please select one line segment in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
+            raise QgsProcessingException()
+        if len(startF) > 1:
+            feedback.reportError(self.tr('{0}: Too many segments selected. Please select one line segment in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
+            raise QgsProcessingException()
         else: 
-            startF = waternet.selectedFeatures()  # feature to start with
             startId = startF[0].id() # id of startF
             if startF[0].attributes()[idxId] != NULL:
                 StartMarker =  startF[0].attributes()[idxId]
             if startF[0].attributes()[idxNext] == 'unconnected':
-                feedback.reportError(self.tr('{0}: Unconnected segment selected. Please select another segment in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
+                feedback.reportError(self.tr('{0}: Unconnected segment selected. Please select another line segment in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
                 raise QgsProcessingException()
-            #the error messages have to be revised
+
             
         '''selection: flow path upstream/downstream
         downstream: 1
