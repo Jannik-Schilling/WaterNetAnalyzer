@@ -31,3 +31,8 @@ You can also choose other columns than "NET_ID","NET_TO" and "NET_FROM", if you 
 
 ## 3 Calculate along flow path
 This tool can calculate how amounts of water or other loads are accumulated along the flow path. Select a column in the attribute table to accumulate (it has to be numeric). The tool will create a new column with the result.
+
+
+## Developement / Funding
+If you have any suggestions for improvements feel free to write an issue or create a fork. 
+Early versions of this plugins have been developed within the project PROSPER-RO, funded by BMBF, grant number 033L212
