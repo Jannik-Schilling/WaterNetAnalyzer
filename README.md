@@ -35,4 +35,4 @@ This tool can calculate how amounts of water or other loads are accumulated alon
 
 ## Developement / Funding
 If you have any suggestions for improvements feel free to write an issue or create a fork. 
-Early versions of this plugins have been developed within the project PROSPER-RO, funded by BMBF, grant number 033L212
+First versions of this plugin have been developed within the project PROSPER-RO, funded by BMBF, grant number 033L212
