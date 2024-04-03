@@ -34,7 +34,9 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import *
 import processing
 import numpy as np
+import os
 from collections import Counter
+
 
 class WaterNetwConstructor(QgsProcessingAlgorithm):
     INPUT_LAYER = 'INPUT_LAYER'
@@ -79,9 +81,9 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             self.INPUT_LAYER,
             context
         )
-        
+
         flip_opt = self.parameterAsInt(parameters, self.FLIP_OPTION, context)
-        
+
         raw_layer = self.parameterAsVectorLayer(
             parameters,
             self.INPUT_LAYER,
@@ -310,6 +312,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             raw_layer.wkbType(),
             raw_layer.sourceCrs())
 
+
         if flip_opt == 2:
             ft_name_list = [f_id for i, f_id in enumerate(finished_segm[:, 2]) if finished_segm[i, 3] != 'unconnected']
             flip_list = [f_id for f_id in ft_name_list if f_id not in flip_list]
@@ -338,11 +341,13 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             outFt.setAttributes(feature.attributes()+finished_segm[i,2:].tolist())
             sink.addFeature(outFt, QgsFeatureSink.FastInsert)
 
+        '''delete variables'''
         del i
         del outFt
         del features
         del checkForCircles
         del nextftsConstr        
+
         return {self.OUTPUT: dest_id}
 
 
