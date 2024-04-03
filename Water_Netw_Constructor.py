@@ -125,6 +125,11 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         '''get features'''
         feedback.setProgressText(self.tr("Loading line layer\n "))
         def get_features_data(ft):
+            '''
+            Extracts the required data from a line feature
+            :param QgsFeature ft
+            :return: list
+            '''
             ge = ft.geometry()
             if ge.isMultipart():
                 vert1 = ge.asMultiPolyline()[0][0]
