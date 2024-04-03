@@ -34,7 +34,9 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.core import *
 import processing
 import numpy as np
+import os
 from collections import Counter
+
 
 class WaterNetwConstructor(QgsProcessingAlgorithm):
     INPUT_LAYER = 'INPUT_LAYER'
@@ -54,7 +56,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 self.FLIP_OPTION,
                 self.tr("Flip lines according to flow direction?"),
-                ['yes','no'],
+                ['yes (from source to mouth)','no', 'against (from mouth to source)'],
                 defaultValue=[0]
             )
         )
@@ -79,9 +81,9 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             self.INPUT_LAYER,
             context
         )
-        
-        flip_opt = self.parameterAsString(parameters, self.FLIP_OPTION, context)
-        
+
+        flip_opt = self.parameterAsInt(parameters, self.FLIP_OPTION, context)
+
         raw_layer = self.parameterAsVectorLayer(
             parameters,
             self.INPUT_LAYER,
@@ -125,6 +127,11 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         '''get features'''
         feedback.setProgressText(self.tr("Loading line layer\n "))
         def get_features_data(ft):
+            '''
+            Extracts the required data from a line feature
+            :param QgsFeature ft
+            :return: list
+            '''
             ge = ft.geometry()
             if ge.isMultipart():
                 vert1 = ge.asMultiPolyline()[0][0]
@@ -132,17 +139,17 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             else: 
                 vert1 = ge.asPolyline()[0]
                 vert2 = ge.asPolyline()[-1]
-            vert1x = [str(vert1.x())[:15],"_",str(vert1.y())[:15]]
-            vert2x = [str(vert2.x())[:15],"_",str(vert2.y())[:15]]
+            vert1x = [str(vert1.x())[:15], "_", str(vert1.y())[:15]]
+            vert2x = [str(vert2.x())[:15], "_", str(vert2.y())[:15]]
             SP1 = "".join(str(x) for x in vert1x)
             SP2 = "".join(str(x) for x in vert2x)
             if len(id_field) == 0:
-                return [SP1,SP2,ft.id(),"NULL"]
+                return [SP1, SP2, ft.id(), "NULL"]
             else:
                 column_id = str(ft.attribute(idxid))
-                return [SP1,SP2,column_id,"NULL",ft.id()]
+                return [SP1, SP2, column_id, "NULL", ft.id()]
         data_list = [get_features_data(f) for f in raw_layer.getFeatures()]
-        data_arr = np.array(data_list)
+        data_arr = np.array(data_list) # first_vertex, second_vertex, feature_name or feature_id, next_feature[NULL], (feature_id)
         feedback.setProgressText(self.tr("Data loaded without problems\n "))
 
         '''id of actual/first segment'''
@@ -156,11 +163,11 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 
         '''mark segment as outlet'''
         out_marker = "Out"
-        data_arr[np.where(data_arr[:,2] == act_segm[2])[0][0],3] = out_marker
+        data_arr[np.where(data_arr[:, 2] == act_segm[2])[0][0], 3] = out_marker
 
         '''store first segment and delete from data_arr'''
-        finished_segm = data_arr[np.where(data_arr[:,2]==act_id)]
-        data_arr = np.delete(data_arr, np.where(data_arr[:,2]==act_id)[0],0)
+        finished_segm = data_arr[np.where(data_arr[:, 2]==act_id)]
+        data_arr = np.delete(data_arr, np.where(data_arr[:, 2]==act_id)[0], 0)
 
         '''find connecting vertex of act_segm, flip if conn_vert is not vert1'''
         if np.isin(act_segm[1], np.concatenate((data_arr[:,0],data_arr[:,1]))):
@@ -294,9 +301,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             feedback.pushWarning("Warning: Circle closed at NET_ID = ")
             for c in circ_list:
                 feedback.pushWarning(self.tr('{0}, ').format(str(c)))
-                
-                
-                
+
 
         '''sink definition'''
         (sink, dest_id) = self.parameterAsSink(
@@ -308,15 +313,17 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             raw_layer.sourceCrs())
 
 
-        
-        
+        if flip_opt == 2:
+            ft_name_list = [f_id for i, f_id in enumerate(finished_segm[:, 2]) if finished_segm[i, 3] != 'unconnected']
+            flip_list = [f_id for f_id in ft_name_list if f_id not in flip_list]
+
         '''add features to sink'''
         features = raw_layer.getFeatures()
         for (i,feature) in enumerate(features):
             if feedback.isCanceled():
                 break # Stop the algorithm if cancel button has been clicked
             outFt = QgsFeature() # Add a feature
-            if flip_opt == '0':
+            if flip_opt == 0 or flip_opt == 2:
                 if str(i) in flip_list:
                     flip_geom = feature.geometry()
                     if flip_geom.isMultipart():
@@ -333,12 +340,14 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 outFt.setGeometry(feature.geometry())
             outFt.setAttributes(feature.attributes()+finished_segm[i,2:].tolist())
             sink.addFeature(outFt, QgsFeatureSink.FastInsert)
-            
+
+        '''delete variables'''
         del i
         del outFt
         del features
         del checkForCircles
         del nextftsConstr        
+
         return {self.OUTPUT: dest_id}
 
 

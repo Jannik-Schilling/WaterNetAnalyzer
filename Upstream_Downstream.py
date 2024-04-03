@@ -60,10 +60,12 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
         return UpstreamDownstream()
 
     def shortHelpString(self):
-        return self.tr(""" Workflow: 
+        return self.tr(""" 
+        This tool selects parts of a (directed) network \"above\" or \"below\" a chosen line segment.
+        Workflow: 
         1. select one line segment.
         2. Choose between \"upstream\" or \"downstream"\. 
-        3. In the drop-down lists chose the columns in the attribute table created by the tool \"1 Water Network Constructor\".
+        3. In the drop-down lists chose the columns (\"NET_ID\", \"NET_TO\", \"NET_FROM\") in the attribute table created by the tool \"1 Water Network Constructor\".
         4. Click on \"Run\"
          
         """)
