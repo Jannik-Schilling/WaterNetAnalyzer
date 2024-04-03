@@ -54,7 +54,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             QgsProcessingParameterEnum(
                 self.FLIP_OPTION,
                 self.tr("Flip lines according to flow direction?"),
-                ['yes','no'],
+                ['yes (from source to mouth)','no', 'against (from mouth to source)'],
                 defaultValue=[0]
             )
         )
@@ -80,7 +80,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             context
         )
         
-        flip_opt = self.parameterAsString(parameters, self.FLIP_OPTION, context)
+        flip_opt = self.parameterAsInt(parameters, self.FLIP_OPTION, context)
         
         raw_layer = self.parameterAsVectorLayer(
             parameters,
@@ -321,7 +321,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             if feedback.isCanceled():
                 break # Stop the algorithm if cancel button has been clicked
             outFt = QgsFeature() # Add a feature
-            if flip_opt == '0':
+            if flip_opt == 0 or flip_opt == 2:
                 if str(i) in flip_list:
                     flip_geom = feature.geometry()
                     if flip_geom.isMultipart():
