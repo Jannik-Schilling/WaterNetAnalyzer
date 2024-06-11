@@ -95,6 +95,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.tr("ID Field/NET_ID"),
                 parentLayerParameterName = self.INPUT_LAYER,
                 type = QgsProcessingParameterField.Any,
+                defaultValue = 'NET_ID'
             )
         )
         
@@ -104,6 +105,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.tr("Prev Node Field/NET_FROM"),
                 parentLayerParameterName = self.INPUT_LAYER,
                 type = QgsProcessingParameterField.Any,
+                defaultValue = 'NET_FROM'
             )
         )
         
@@ -113,6 +115,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.tr("Next Node Field/NET_TO"),
                 parentLayerParameterName = self.INPUT_LAYER,
                 type = QgsProcessingParameterField.Any,
+                defaultValue = 'NET_TO'
             )
         )
 
