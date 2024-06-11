@@ -92,6 +92,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_ID,
                 self.tr("ID Field/NET_ID"),
                 parentLayerParameterName = self.INPUT_LAYER,
+                defaultValue = 'NET_ID',
                 type = QgsProcessingParameterField.Any,
             )
         )
@@ -101,6 +102,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_PREV,
                 self.tr("Prev Node Field/NET_FROM"),
                 parentLayerParameterName = self.INPUT_LAYER,
+                defaultValue = 'NET_FROM',
                 type = QgsProcessingParameterField.Any,
             )
         )
@@ -110,6 +112,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_NEXT,
                 self.tr("Next Node Field/NET_TO"),
                 parentLayerParameterName = self.INPUT_LAYER,
+                defaultValue = 'NET_TO',
                 type = QgsProcessingParameterField.Any,
             )
         )
@@ -136,7 +139,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
         prev_field = self.parameterAsString(parameters, self.INPUT_FIELD_PREV, context)
         
         '''field index for id,next segment, previous segment'''
-        idxId = waternet.fields().indexFromName(id_field) 
+        idxId = waternet.fields().indexFromName(id_field)
         idxPrev = waternet.fields().indexFromName(prev_field)
         idxNext = waternet.fields().indexFromName(next_field)
 
@@ -149,10 +152,13 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
             feedback.reportError(self.tr('{0}: Too many segments selected. Please select one line segment in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
             raise QgsProcessingException()
         else: 
-            startId = startF[0].id() # id of startF
+            startId = startF[0].id()
             if startF[0].attributes()[idxId] != NULL:
-                StartMarker =  startF[0].attributes()[idxId]
-            if startF[0].attributes()[idxNext] == 'unconnected':
+                StartMarker = startF[0].attributes()[idxId]
+            else:
+                feedback.reportError('This segment has an invalid ID (NULL)')
+                raise QgsProcessingException()
+            if startF[0].attributes()[idxNext] == 'unconnected' or startF[0].attributes()[idxPrev] == 'unconnected':
                 feedback.reportError(self.tr('{0}: Unconnected segment selected. Please select another line segment in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
                 raise QgsProcessingException()
 
@@ -171,10 +177,11 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
         feedback.setProgress(2)
         
         '''load data from layer "waternet" '''
-        Data = [[str(f.attribute(idxId)),str(f.attribute(idxPrev)),str(f.attribute(idxNext)),f.id()] for f in waternet.getFeatures()]
+        Data = [[str(f.attribute(idxId)),str(f.attribute(idxPrev)),str(f.attribute(idxNext)),f.id()] for f in waternet.getFeatures()]  # 0:id, 1:from, 2:to, 3id
         DataArr = np.array(Data, dtype= 'object') # safe Data as numpy array
         feedback.setProgressText(self.tr("Data loaded\n Calculating {0}\n").format(str(Section_long)))
         feedback.setProgress(20)
+
         '''this was planned as an option: should the first selected segment be part of the final selection?
         at the moment it´s permanently part of the final selection'''
         first_in_selection = True
@@ -199,6 +206,18 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                 clm_search = 1
             vtx_connect = DataArr[np.where(DataArr[:,0] == MARKER2)[0].tolist(),clm_current][0] # connecting vertex of actual segment
             rows_connect = np.where(DataArr[:,clm_search] == vtx_connect)[0].tolist() # find rows in DataArr with matching vertices to vtx_connect
+            unconnected_errors = [DataArr[x, 3] for x in rows_connect if DataArr[x, clm_current]=='unconnected']  # this can only happen after manual editing
+            if len(unconnected_errors) > 0:
+                waternet.removeSelection()
+                waternet.selectByIds(unconnected_errors, waternet.SelectBehavior(1))
+                raise QgsProcessingException(
+                    'The selected features in the flow are marked as \'unconnected\' '
+                    + '(most likely because of manual editing). Please delete the columns with the network information ('
+                    + next_field
+                    + ', '
+                    + prev_field
+                    + ') and run tool 1 \"Water Network Constructor\" again.'
+                )
             return(rows_connect)
 
         i=1
@@ -252,18 +271,5 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
             waternet.selectByIds(selSet, waternet.SelectBehavior(1))
             feedback.setProgress(total2*i)
             i +=1
-        
-        ''' "Cleaning" my storage....don´t know if necessary'''
-        del i  
-        del Data
-        del DataArr
-        del allFt
-        del net_route
-        del safe
-        del forks
-        del origins
-        del nextFtsSel
-        del MARKER 
-        del StartMarker
-        
+
         return {}
