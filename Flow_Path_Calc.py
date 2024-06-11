@@ -158,7 +158,13 @@ class FlowPathCalc(QgsProcessingAlgorithm):
 
         '''load data from layer "waternet" '''
         feedback.setProgressText(self.tr("Loading network layer\n "))
-        Data = [[str(f.attribute(idxId)),str(f.attribute(idxPrev)),str(f.attribute(idxNext)),f.attribute(idxCalc)] for f in waternet.getFeatures()]
+        Data = [[
+            str(f.attribute(idxId)),
+            str(f.attribute(idxPrev)),
+            str(f.attribute(idxNext)),
+            f.attribute(idxCalc),
+            f.id()
+        ] for f in waternet.getFeatures()]
         DataArr = np.array(Data, dtype='object')
         DataArr[np.where(DataArr[:,3] == NULL),3]=0
         feedback.setProgressText(self.tr("Data loaded \n Calculating flow paths \n"))
@@ -173,6 +179,18 @@ class FlowPathCalc(QgsProcessingAlgorithm):
         def nextFtsCalc (MARKER2):
             vtx_to = DataArr[np.where(DataArr[:,0] == MARKER2)[0].tolist(),2][0] # "to"-vertex of actual segment
             rows_to = np.where(DataArr[:,1] == vtx_to)[0].tolist() # find rows in DataArr with matching "from"-vertices to vtx_to
+            unconnected_errors = [DataArr[x, 4] for x in rows_to if DataArr[x, 2]=='unconnected']  # this can only happen after manual editing
+            if len(unconnected_errors) > 0:
+                waternet.removeSelection()
+                waternet.selectByIds(unconnected_errors, waternet.SelectBehavior(1))
+                raise QgsProcessingException(
+                    'The selected features in the flow are marked as \'unconnected\' '
+                    + '(most likely because of manual editing). Please delete the columns with the network information ('
+                    + next_field
+                    + ', '
+                    + prev_field
+                    + ') and run tool 1 \"Water Network Constructor\" again.'
+                )
             return(rows_to)
 
         '''function to find flow path'''
