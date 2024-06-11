@@ -161,8 +161,9 @@ class FlowPathCalc(QgsProcessingAlgorithm):
         feedback.setProgressText(self.tr("Data loaded \n Calculating flow paths \n"))
 
         '''segments with numbers'''
-        calc_column = np.copy(DataArr[:,3]) #deep copy of column to do calculations on
-        calc_segm = np.where(calc_column > 0)[0].tolist() 
+        calc_column = np.copy(DataArr[:,3])  # deep copy of column to do calculations on
+        calc_segm = np.where(calc_column > 0)[0].tolist()  # indices!
+        calc_segm = [i for i in calc_segm if (DataArr[i,1] != 'unconnected' and DataArr[i,2] != 'unconnected')]
         DataArr[:,3] = 0 # set all to 0
 
         '''function to find next features in the net'''
