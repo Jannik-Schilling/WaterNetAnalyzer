@@ -31,7 +31,25 @@ __copyright__ = '(C) 2019 by Jannik Schilling'
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.core import *
+from qgis.core import (
+    QgsProcessingAlgorithm,
+    QgsProcessing,
+    QgsProcessingException,
+    QgsFeature,
+    QgsFeatureSink,
+    QgsField,
+    QgsFields,
+    QgsGeometry,
+    QgsMultiLineString,
+    QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterDefinition,
+    QgsProcessingParameterEnum,
+    QgsProcessingParameterField,
+    QgsProcessingParameterNumber,
+    QgsProcessingParameterVectorLayer,
+    Qgis
+)
 import processing
 import numpy as np
 import os
@@ -42,6 +60,8 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
     INPUT_LAYER = 'INPUT_LAYER'
     FLIP_OPTION = 'FLIP_OPTION'
     INPUT_ID_COL = 'INPUT_ID_COL'
+    SEARCH_RADIUS = 'SEARCH_BUFFER'
+    MULTISELECTED = 'MULTISELECTED'
     OUTPUT = 'OUTPUT'
 
     def initAlgorithm(self, config=None):
@@ -69,6 +89,28 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 optional = True
             )
         )
+
+        param_Radius = QgsProcessingParameterNumber(
+                self.SEARCH_RADIUS,
+                self.tr("Search Radius for Connections"),
+                type=Qgis.ProcessingNumberParameterType.Double,
+                defaultValue=0,
+                minValue=0,
+                maxValue=10,
+                optional=True
+            )
+        param_Radius.setFlags(param_Radius.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param_Radius)
+
+        param_multiple_netw = QgsProcessingParameterBoolean(
+                self.MULTISELECTED,
+                self.tr("Create multiple independent (!) networks for multiple selected outlets"),
+                defaultValue=False,
+                optional=True
+            )
+        param_multiple_netw.setFlags(param_multiple_netw.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param_multiple_netw)
+        
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
@@ -83,18 +125,21 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         )
 
         flip_opt = self.parameterAsInt(parameters, self.FLIP_OPTION, context)
-
+        search_radius = self.parameterAsDouble(parameters, self.SEARCH_RADIUS, context)
+        multinetwork = self.parameterAsBool(parameters, self.MULTISELECTED, context)
         raw_layer = self.parameterAsVectorLayer(
             parameters,
             self.INPUT_LAYER,
             context
         )
-        if raw_layer is None:
+        if raw_layer is None or not(raw_layer.isValid()):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
         raw_fields = raw_layer.fields()
 
         '''Counter for the progress bar'''
         total = raw_layer.featureCount()
+        if total == 0:
+            raise QgsProcessingException('This Layer has no features! Please check the chosen layer')
         parts = 100/total 
 
         '''optional: Existing ID field'''
@@ -108,13 +153,24 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         '''check if one feature is selected'''
         sel_feat = raw_layer.selectedFeatures() #selected Feature
         if not sel_feat:
-            feedback.reportError(self.tr('{0}: No segment selected. Please select outlet in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
+            feedback.reportError(
+                self.tr(
+                    '{0}: No segment selected. Please select outlet in layer "{1}" '
+                ).format(self.displayName(), parameters[self.INPUT_LAYER])
+            )
             raise QgsProcessingException()
         if len(sel_feat) > 1:
-            feedback.reportError(self.tr('{0}: Too many segments selected. Please select outlet in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
-            raise QgsProcessingException()
+            if not multinetwork:
+                feedback.reportError(
+                    self.tr(
+                        '{0}: Too many ({1}) segments selected. Please select only one outlet in layer "{2}" or choose the advanced option for multiple networks'
+                    ).format(self.displayName(), len(sel_feat), parameters[self.INPUT_LAYER])
+                )
+                raise QgsProcessingException()
+            else:
+                feedback.setProgressText('{0} segments selected. The tool will try to create multiple networks.'.format(len(sel_feat)))
         
-        '''add new fields'''
+        '''define (new) fields for output'''
         #define new fields
         out_fields = QgsFields()
         #append fields
