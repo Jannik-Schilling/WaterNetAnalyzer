@@ -14,7 +14,11 @@ The plugin should appear in your Processing Toolbox.
 An example line layer can be found in [the testdata folder](/testdata).
 
 ## 1 Water Network Constructor
-The first tool adds information about connections in the network to the attribute table (the simple algorithm is shown in the figure below). You just have to select the undermost line segment (e.g. in a sewage system it´s the last one before entering a treatment plant, in a river system it´s the river mouth). Select whether you want to change line directions according to flow directions (new in version 1.3) and click on "Run". From version 1.4 on, you can choose an already existing column of the attribute table as "NET_ID" (se below) or generate a new one.
+The first tool adds information about connections in the network to the attribute table (the simple algorithm is shown in the figure below). Worflow / Options
+1. Select the undermost line segment (e.g. in a sewage system it´s the last one before entering a treatment plant, in a river system it´s the river mouth). New in version 1.99 (experimental): select multiple line segments for multiple independent networks at once.
+2. The tool can automatically change line directions according to or against flow directions (new in version 1.10) if you choose this option
+3. From version 1.4 on, you can choose an already existing column of the attribute table as "NET_ID" (se below) or generate a new one.
+4. To ignore small gaps between vertices you can define a search radius (new in version 1.99)
 
 ![Network Algorithm](/help/images/Netz_erstellen2.png)
 
