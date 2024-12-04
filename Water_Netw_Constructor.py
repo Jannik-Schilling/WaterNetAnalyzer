@@ -31,9 +31,27 @@ __copyright__ = '(C) 2019 by Jannik Schilling'
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.core import *
+from qgis.core import (
+    QgsProcessingAlgorithm,
+    QgsProcessing,
+    QgsProcessingException,
+    QgsFeature,
+    QgsFeatureSink,
+    QgsField,
+    QgsFields,
+    QgsGeometry,
+    QgsMultiLineString,
+    QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterDefinition,
+    QgsProcessingParameterEnum,
+    QgsProcessingParameterField,
+    QgsProcessingParameterNumber,
+    QgsProcessingParameterVectorLayer,
+    QgsSpatialIndex,
+    Qgis
+)
 import processing
-import numpy as np
 import os
 from collections import Counter
 
@@ -42,6 +60,8 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
     INPUT_LAYER = 'INPUT_LAYER'
     FLIP_OPTION = 'FLIP_OPTION'
     INPUT_ID_COL = 'INPUT_ID_COL'
+    SEARCH_RADIUS = 'SEARCH_BUFFER'
+    MULTISELECTED = 'MULTISELECTED'
     OUTPUT = 'OUTPUT'
 
     def initAlgorithm(self, config=None):
@@ -69,6 +89,28 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 optional = True
             )
         )
+
+        param_Radius = QgsProcessingParameterNumber(
+                self.SEARCH_RADIUS,
+                self.tr("Search Radius for Connections"),
+                type=Qgis.ProcessingNumberParameterType.Double,
+                defaultValue=0,
+                minValue=0,
+                maxValue=10,
+                optional=True
+            )
+        param_Radius.setFlags(param_Radius.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param_Radius)
+
+        param_multiple_netw = QgsProcessingParameterBoolean(
+                self.MULTISELECTED,
+                self.tr("Create multiple independent (!) networks for multiple selected outlets"),
+                defaultValue=False,
+                optional=True
+            )
+        param_multiple_netw.setFlags(param_multiple_netw.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(param_multiple_netw)
+        
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
@@ -83,18 +125,23 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         )
 
         flip_opt = self.parameterAsInt(parameters, self.FLIP_OPTION, context)
-
+        search_radius = self.parameterAsDouble(parameters, self.SEARCH_RADIUS, context)
+        multinetwork = self.parameterAsBool(parameters, self.MULTISELECTED, context)
         raw_layer = self.parameterAsVectorLayer(
             parameters,
             self.INPUT_LAYER,
             context
         )
-        if raw_layer is None:
+        if raw_layer is None or not(raw_layer.isValid()):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        else:
+            sp_index = QgsSpatialIndex(raw_layer.getFeatures())
         raw_fields = raw_layer.fields()
 
         '''Counter for the progress bar'''
         total = raw_layer.featureCount()
+        if total == 0:
+            raise QgsProcessingException('This Layer has no features! Please check the chosen layer')
         parts = 100/total 
 
         '''optional: Existing ID field'''
@@ -105,202 +152,214 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             idxid = raw_layer.fields().indexFromName(id_field)
 
 
-        '''check if one feature is selected'''
-        sel_feat = raw_layer.selectedFeatures() #selected Feature
-        if not sel_feat:
-            feedback.reportError(self.tr('{0}: No segment selected. Please select outlet in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
+        '''check amount of selected features'''
+        sel_feats = raw_layer.selectedFeatures() #selected Feature
+        if not sel_feats:
+            feedback.reportError(
+                self.tr(
+                    '{0}: No segment selected. Please select outlet in layer "{1}" '
+                ).format(self.displayName(), parameters[self.INPUT_LAYER])
+            )
             raise QgsProcessingException()
-        if len(sel_feat) > 1:
-            feedback.reportError(self.tr('{0}: Too many segments selected. Please select outlet in layer "{1}" ').format(self.displayName(), parameters[self.INPUT_LAYER]))
-            raise QgsProcessingException()
-        
-        '''add new fields'''
-        #define new fields
+        else:
+            sel_feats_ids = [f.id() for f in sel_feats]
+            if len(sel_feats) > 1:
+                if not multinetwork:
+                    feedback.reportError(
+                        self.tr(
+                            '{0}: Too many ({1}) segments selected. Please select only one outlet in layer "{2}" or choose the advanced option for multiple networks'
+                        ).format(self.displayName(), len(sel_feats), parameters[self.INPUT_LAYER])
+                    )
+                    raise QgsProcessingException()
+                else:
+                    feedback.setProgressText('{0} segments selected. The tool will try to create multiple networks.'.format(len(sel_feats)))
+
+
+        '''define (new) fields for output'''
+        # define new fields
         out_fields = QgsFields()
-        #append fields
+        # append fields
         for field in raw_fields:
             out_fields.append(QgsField(field.name(), field.type()))
         out_fields.append(QgsField('NET_ID', QVariant.String))
         out_fields.append(QgsField('NET_TO', QVariant.String))
         out_fields.append(QgsField('NET_FROM', QVariant.String))
+        # lists for results
+        finished_segm = {}  # {qgis id: [net_id, net_to, net_from]}
+        netw_dict = {}  # a dict for individual network numbers
+        circ_list = []  # list for found circles
 
-        '''get features'''
-        feedback.setProgressText(self.tr("Loading line layer\n "))
+
         def get_features_data(ft):
             '''
             Extracts the required data from a line feature
             :param QgsFeature ft
-            :return: list
+            :return: list with first_vertex, last_vertex, feature_id, (feature_name)
             '''
             ge = ft.geometry()
-            if ge.isMultipart():
-                vert1 = ge.asMultiPolyline()[0][0]
-                vert2 = ge.asMultiPolyline()[0][-1]
-            else: 
-                vert1 = ge.asPolyline()[0]
-                vert2 = ge.asPolyline()[-1]
-            vert1x = [str(vert1.x())[:15], "_", str(vert1.y())[:15]]
-            vert2x = [str(vert2.x())[:15], "_", str(vert2.y())[:15]]
-            SP1 = "".join(str(x) for x in vert1x)
-            SP2 = "".join(str(x) for x in vert2x)
+            vertex_list = [v for v in ge.vertices()]
+            vert1 = QgsGeometry().fromPoint(vertex_list[0])
+            vert2 = QgsGeometry().fromPoint(vertex_list[-1])
             if len(id_field) == 0:
-                return [SP1, SP2, ft.id(), "NULL"]
+                return [vert1, vert2, ft.id()]
             else:
                 column_id = str(ft.attribute(idxid))
-                return [SP1, SP2, column_id, "NULL", ft.id()]
-        data_list = [get_features_data(f) for f in raw_layer.getFeatures()]
-        data_arr = np.array(data_list) # first_vertex, second_vertex, feature_name or feature_id, next_feature[NULL], (feature_id)
-        feedback.setProgressText(self.tr("Data loaded without problems\n "))
+                return [vert1, vert2, ft.id(), column_id]
 
-        '''id of actual/first segment'''
-        if len(id_field) == 0:
-            act_id = str(sel_feat[0].id())
-        else:
-            act_id = str(sel_feat[0].attributes()[idxid])
-
-        '''first segment'''
-        act_segm = data_arr[np.where(data_arr[:,2] == act_id)][0]
-                
-        '''mark segment as outlet'''
-        out_marker = "Out"
-        data_arr[np.where(data_arr[:, 2] == act_segm[2])[0][0], 3] = out_marker
-
-        '''store first segment and delete from data_arr'''
-        finished_segm = data_arr[np.where(data_arr[:, 2]==act_id)]
-        data_arr = np.delete(data_arr, np.where(data_arr[:, 2]==act_id)[0], 0)
-
-        '''find connecting vertex of act_segm, flip if conn_vert is not vert1'''
-        if np.isin(act_segm[1], np.concatenate((data_arr[:,0],data_arr[:,1]))):
-            if np.isin(act_segm[0], np.concatenate((data_arr[:,0],data_arr[:,1]))):
-                feedback.reportError(self.tr('The selected segment is connecting two segments. Please chose another segment in layer "{0}" or add a segment as a single outlet').format(parameters[self.INPUT_LAYER]))
-                raise QgsProcessingException()
+        def get_connected_ids(
+            connecting_point,
+            current_ft_id,
+            search_radius
+        ):
+            '''
+            Searches for connected features at the connecting point, except for the current feature; also returns the search area
+            :param QgsGeometry (Point) connecting_point
+            :param int current_ft_id
+            :param QgsRectangle search_area
+            '''
+            if search_radius != 0:
+                search_area = connecting_point.buffer(search_radius, 10).boundingBox()
             else:
-                if len(id_field) == 0:
-                    flip_list = [act_id]
+                search_area = connecting_point.boundingBox()
+            inters_list = sp_index.intersects(search_area)
+            if current_ft_id in inters_list:  # remove self
+                inters_list.remove(current_ft_id)
+            return inters_list, search_area
+            
+
+        def prepare_visit(
+            next_ft_id,
+            downstream_id,
+            search_area,
+            flip_list,
+            finished_segm,
+            finished_ids
+        ):
+            '''
+            prepares the required data for the next line segment or a segment which will be stored in the to do list
+            :param int next_ft_id
+            :param int downstream_id
+            :param QgsRectangle search_area
+            :param list flip_list
+            :param dict finished_segm
+            :param list finished_ids
+            :return list (next_data, next_connecting_point)
+            '''
+            next_ft = raw_layer.getFeature(next_ft_id)
+            next_data = get_features_data(next_ft)
+            finished_segm[next_data[2]] = [
+                        str(next_data[-1]),
+                        downstream_id,
+                        str(next_data[-1])
+                    ]
+            finished_ids.append(next_data[2])
+            if next_data[0].intersects(search_area):
+                next_connecting_point = next_data[1]
+                flip_list.append(next_ft_id)
+            else:
+                next_connecting_point = next_data[0]
+            return [next_data, next_connecting_point]
+
+
+        '''loop for each selected'''
+        for network_number, sel_feat in enumerate(sel_feats):
+            finished_ids = []  # list to recognise already visited features
+            to_do_list = []  # empty list for tributaries to visit later
+            if multinetwork:
+                sel_feats_ids = sel_feats_ids[(network_number+1):]
+
+            '''data of first segment'''
+            current_data = get_features_data(sel_feat)  # first_vertex, last_vertex, feature_id, (feature_name)
+            out_marker = "Out"  # mark segment as outlet
+            start_f_id = current_data[2]
+            finished_segm[current_data[2]] = [
+                        str(current_data[-1]),
+                        out_marker,
+                        str(current_data[-1])
+                    ]
+            finished_ids.append(current_data[2])
+
+            '''find connecting vertex of (first) current_data, add to flip_list if conn_vert is not vert1'''
+            conn_ids_0, search_area_0 = get_connected_ids(current_data[0], current_data[2], search_radius)
+            conn_ids_1, search_area_1 = get_connected_ids(current_data[1], current_data[2], search_radius)
+            
+            if len(conn_ids_1) > 0:  # last vertex connecting
+                if len(conn_ids_0) > 0:  # both vertices connecting
+                    feedback.reportError(
+                        self.tr(
+                            'The selected segment with id == {0} is connecting two segments.'
+                            +' Please chose another segment in layer "{1}" or add a segment as a single outlet'
+                        ).format(current_data[2], parameters[self.INPUT_LAYER]))
                 else:
-                    flip_list = [act_segm[4]]
-                vert_save = np.copy(act_segm[0])
-                act_segm[0] = act_segm[1]
-                act_segm[1] = vert_save
-        else:
-            flip_list = []
+                    flip_list = [current_data[2]]  # add id to flip list
+                    conn_ids = conn_ids_1
+                    search_area = search_area_1
 
-        '''function to find the next segment upstream'''
-        #connecting vertex of a_segm is always act_segm[0]
-        def nextftsConstr (a_segm, flp_list):
-                conn_vert = a_segm[0]
-                if np.isin(conn_vert,data_arr[:,1]) or np.isin(conn_vert,data_arr[:,0]):
-                    n_segm1 = data_arr[data_arr[:,1] == conn_vert]
-                    n_segm0 = data_arr[data_arr[:,0] == conn_vert]
-                    if len(n_segm0) > 0:
-                        '''turn vertice information if conn_vert in data_arr[:,0]'''
-                        vert_save = np.copy(n_segm0[:,0])
-                        n_segm0[:,0] = n_segm0[:,1]
-                        n_segm0[:,1] = vert_save
-                        if len(id_field) == 0:
-                            flp_list = flp_list + n_segm0[:,2].tolist()
-                        else:
-                            flp_list = flp_list + n_segm0[:,4].tolist()
-                    n_segm = np.concatenate((n_segm1,n_segm0))
-                else:
-                    n_segm=n_segm = np.array([])
-                    conn_vert = 'None'
-                return([n_segm,conn_vert,flp_list])
-
-
-        '''this function will find circles'''
-        def checkForCircles (ne_segm, conn_v):
-                    all_finished_pts = np.concatenate((finished_segm[:,0],finished_segm[:,1]))
-                    all_act_pts = np.concatenate((ne_segm[:,0],ne_segm[:,1]))
-                    pts_count = Counter(all_act_pts)
-                    count_arr = np.array(list(pts_count.items()))
-                    '''Option 1: any vertex of ne_segm already is in finished_segm'''
-                    count_arr2 = np.delete(count_arr, np.where(count_arr[:,0] == conn_v)[0],0)
-                    circ_segm1 = ne_segm[np.all(np.isin(ne_segm[:,:2],all_finished_pts),axis = 1)]
-                    circ_segm2 = finished_segm[np.any(np.isin(finished_segm[:,:2],count_arr2[:,0]), axis= 1)]
-                    circ_segm = np.array(circ_segm2.tolist()+circ_segm1.tolist())
-                    if len (circ_segm) > 0:
-                        circ_id = [circ_segm[:,2].tolist()]
-                    else: 
-                        circ_id = []
-                    '''Option 2: two (or more) segments of ne_segm form a circle'''
-                    if len(ne_segm) > 1:
-                        count_arr3 = np.delete(count_arr, np.where(count_arr[:,1] == '1')[0],0)
-                        circ_segm = ne_segm[np.all(np.isin(ne_segm[:,:2],count_arr3[:,0]),axis = 1)]
-                        circ_id = circ_id + [circ_segm[:,2].tolist()]
-                    circ_ids = [x for x in circ_id if x]
-                    return (circ_ids)
-
-        '''list to save circles if the algothm finds one'''
-        circ_list = list()
-
-        ''' "do later list" with 'X' as marker'''
-        do_later=np.array([np.repeat('X',len(act_segm))])
-
-        i=1
-        while len(data_arr) != 0:
-            if feedback.isCanceled():
+            else:  # first vertex connecting
+                flip_list = []
+                conn_ids = conn_ids_0  
+                search_area = search_area_0
+            
+            '''loop: while still connected features, add to finished_segm'''
+            while True:
+                if feedback.isCanceled():
+                    print('finished so far: '+ str(finished_ids))
+                    print('current id'+ str(current_data[2]))
                     break
-            '''id of next segment'''
-            next_data = nextftsConstr(act_segm, flip_list)
-            next_fts = next_data[0]
-            conn_vertex = next_data[1]
-            flip_list = next_data[2]
-            '''check for circles'''
-            if len(next_fts)>0:
-                circ_segments = checkForCircles(next_fts, conn_vertex)
-                circ_list = circ_list + circ_segments
-            '''handle next features'''
-            if len(next_fts) == 1:
-                next_fts[:,3] = str(act_id)
-                '''store finish segment and delete from data_arr'''
-                finished_segm = np.concatenate((finished_segm,next_fts))
-                data_arr = np.delete(data_arr,np.where(data_arr[:,2] == next_fts[:,2]),0)
-                ''' upstream segment'''
-                next_segm = next_fts[0]
-            if len(next_fts) == 0:
-                ''' upstream segment'''
-                next_segm = do_later[0]
-                do_later = do_later[1:]
-            if len(next_fts) > 1:
-                next_fts[:,3] = str(act_id)
-                '''store first segment and delete from data_arr'''
-                finished_segm = np.concatenate((finished_segm,next_fts))
-                data_arr = np.delete(data_arr,np.where(np.isin(data_arr[:,2],next_fts[:,2])),0)
-                ''' upstream segment'''
-                do_later = np.concatenate((next_fts[1:],do_later))
-                next_segm = next_fts[0]
-            if next_segm[0] == 'X':
-                break
-            '''changing actual segment'''
-            act_segm = next_segm
-            act_id = act_segm[2]
-            feedback.setProgress(100*(1-(len(data_arr)/total)))
 
+                '''check for interconnections between networks'''
+                if multinetwork:
+                    check_list = [f_id for f_id in conn_ids if f_id in sel_feats_ids]
+                    if check_list:
+                        raise QgsProcessingException(
+                            'The network which started with feature id ='
+                            + str(start_f_id)
+                            + ' reached other selected feature(s): '
+                            +', '.join([str(f_id) for f_id in check_list])
+                            + '. Please deselect one of these features or disconnect the lines'
+                        )
+                        break
 
+                next_data_lists = [
+                    prepare_visit(
+                        next_ft_id,
+                        current_data[2],
+                        search_area,
+                        flip_list,
+                        finished_segm,
+                        finished_ids
+                    ) for next_ft_id in conn_ids
+                ]
 
-        '''unconnected features'''
-        data_arr[:,3] = 'unconnected'
-        finished_segm = np.concatenate((finished_segm,data_arr))
-        feedback.setProgressText(self.tr('network generated with {0} unconnected segments').format(str(len(data_arr))))
+                if len(conn_ids) == 0:
+                    if len(to_do_list)==0:
+                        netw_dict[network_number] = finished_ids
+                        break
+                    else:
+                        current_data, connecting_point = to_do_list[0]
+                        to_do_list = to_do_list[1:]
+                if len(conn_ids) == 1:
+                    current_data, connecting_point = next_data_lists[0]
+                if len(conn_ids) > 1:
+                    current_data, connecting_point = next_data_lists[0]
+                    to_do_list = to_do_list + next_data_lists[1:]
 
+                conn_ids, search_area = get_connected_ids(connecting_point, current_data[2], search_radius)
 
-        '''sort finished segments for output'''
-        if len(id_field) == 0:
-            fin_order = [int(f) for f in finished_segm[:,2]]
-        else:
-            fin_order = [int(f) for f in finished_segm[:,4]]
-            finished_segm = np.delete(finished_segm, 4,1)
-        finished_segm = finished_segm[np.array(fin_order).argsort()]
-        finished_segm = np.c_[finished_segm, finished_segm[:,2]]
-        finished_segm[np.where(finished_segm[:,3] == 'unconnected'),4] = 'unconnected'
+                '''check for circles'''
+                circle_closing_fts = [f_id for f_id in conn_ids if f_id in finished_ids]
+                if len(circle_closing_fts) > 0:
+                    circ_list = circ_list + [[current_data[2], f_id] for f_id in circle_closing_fts]
+                    conn_ids = [f_id for f_id in conn_ids if not f_id in finished_ids]
 
 
         '''feedback for circles'''
         if len (circ_list)>0:
+            circ_dict = Counter(tuple(sorted(lst)) for lst in circ_list)
             feedback.pushWarning("Warning: Circle closed at NET_ID = ")
-            for c in circ_list:
-                feedback.pushWarning(self.tr('{0}, ').format(str(c)))
+            for f_ids, counted in circ_dict.items():
+                if counted > 1:
+                    feedback.pushWarning(self.tr('{0}, ').format(str(f_ids)))
 
 
         '''sink definition'''
@@ -312,16 +371,18 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             raw_layer.wkbType(),
             raw_layer.sourceCrs())
 
-
+        '''adjust_flip_list, if option is 2 (against)'''
         if flip_opt == 2:
-            ft_name_list = [f_id for i, f_id in enumerate(finished_segm[:, 2]) if finished_segm[i, 3] != 'unconnected']
-            flip_list = [f_id for f_id in ft_name_list if f_id not in flip_list]
+            all_visited_ids = [f_id for id_list in netw_dict.values() for f_id in id_list]
+            flip_list = [f_id for f_id in all_visited_ids if f_id not in flip_list]
+
 
         '''add features to sink'''
         features = raw_layer.getFeatures()
-        for (i,feature) in enumerate(features):
+        for i, feature in enumerate(features):
             if feedback.isCanceled():
                 break # Stop the algorithm if cancel button has been clicked
+            old_f_id = feature.id()
             outFt = QgsFeature() # Add a feature
             if flip_opt == 0 or flip_opt == 2:
                 if str(i) in flip_list:
@@ -335,18 +396,16 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                         rev_geom = QgsGeometry(flip_geom.constGet().reversed())
                     outFt.setGeometry(rev_geom)
                 else:
-                    outFt.setGeometry(feature.geometry())
+                    outFt.setGeometry(feature.geometry())  # not in flip list
             else:
-                outFt.setGeometry(feature.geometry())
-            outFt.setAttributes(feature.attributes()+finished_segm[i,2:].tolist())
+                outFt.setGeometry(feature.geometry())  # no flip option
+            if old_f_id in finished_segm.keys():
+                outFt.setAttributes(feature.attributes()+finished_segm[old_f_id])
+            else:
+                ft_data = get_features_data(feature)
+                outFt.setAttributes(feature.attributes()+[str(ft_data[-1]), 'unconnected', 'unconnected'])
             sink.addFeature(outFt, QgsFeatureSink.FastInsert)
 
-        '''delete variables'''
-        del i
-        del outFt
-        del features
-        del checkForCircles
-        del nextftsConstr        
 
         return {self.OUTPUT: dest_id}
 
