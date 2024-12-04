@@ -20,18 +20,17 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=1.10. 2024-06 fix routing error in unconnected segments
-
+changelog=1.99 2024-12 new options for WaterNetworkConstructor: multiple networks, search radius
       
 # Tags are comma separated with spaces allowed
 
-tags=water, network, flow, load, net, catchment
+tags=water, network, flow, load, net, catchment, river
 
 homepage=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 category=Analysis
 icon=icons/icon.png
 # experimental flag
-experimental=False
+experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
