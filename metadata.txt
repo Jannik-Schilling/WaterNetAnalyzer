@@ -30,7 +30,7 @@ homepage=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 category=Analysis
 icon=icons/icon.png
 # experimental flag
-experimental=False
+experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
