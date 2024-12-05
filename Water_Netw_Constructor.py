@@ -89,11 +89,15 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 optional = True
             )
         )
-
+        try:
+            rad_type = Qgis.ProcessingNumberParameterType.Double
+        except:
+            # for qgis prior to version 3.36
+            rad_type = QgsProcessingParameterNumber.Double
         param_Radius = QgsProcessingParameterNumber(
                 self.SEARCH_RADIUS,
                 self.tr("Search Radius for Connections"),
-                type=Qgis.ProcessingNumberParameterType.Double,
+                type=rad_type,
                 defaultValue=0,
                 minValue=0,
                 maxValue=10,
