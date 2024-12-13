@@ -327,7 +327,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 next_data_lists = [
                     prepare_visit(
                         next_ft_id,
-                        current_data[2],
+                        current_data[-1],
                         search_area,
                         flip_list,
                         finished_segm,
