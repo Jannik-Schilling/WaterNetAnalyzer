@@ -295,6 +295,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                             'The selected segment with id == {0} is connecting two segments.'
                             +' Please chose another segment in layer "{1}" or add a segment as a single outlet'
                         ).format(current_data[2], parameters[self.INPUT_LAYER]))
+                    raise QgsProcessingException()
                 else:
                     flip_list.append(current_data[2])  # add id to flip list
                     conn_ids = conn_ids_1
@@ -316,9 +317,9 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                     check_list = [f_id for f_id in conn_ids if f_id in sel_feats_ids]
                     if check_list:
                         raise QgsProcessingException(
-                            'The network which started with feature id ='
+                            'The network which started with feature id = '
                             + str(start_f_id)
-                            + ' reached other selected feature(s): '
+                            + ' reached other selected feature(s): id = '
                             +', '.join([str(f_id) for f_id in check_list])
                             + '. Please deselect one of these features or disconnect the lines'
                         )
