@@ -192,6 +192,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         finished_segm = {}  # {qgis id: [net_id, net_to, net_from]}
         netw_dict = {}  # a dict for individual network numbers
         circ_list = []  # list for found circles
+        flip_list = []  # list to flip geometries according or against flow direction
 
 
         def get_features_data(ft):
@@ -295,12 +296,11 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                             +' Please chose another segment in layer "{1}" or add a segment as a single outlet'
                         ).format(current_data[2], parameters[self.INPUT_LAYER]))
                 else:
-                    flip_list = [current_data[2]]  # add id to flip list
+                    flip_list.append(current_data[2])  # add id to flip list
                     conn_ids = conn_ids_1
                     search_area = search_area_1
 
             else:  # first vertex connecting
-                flip_list = []
                 conn_ids = conn_ids_0  
                 search_area = search_area_0
             
@@ -381,6 +381,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             flip_list = [f_id for f_id in all_visited_ids if f_id not in flip_list]
 
 
+
         '''add features to sink'''
         features = raw_layer.getFeatures()
         for i, feature in enumerate(features):
@@ -389,7 +390,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             old_f_id = feature.id()
             outFt = QgsFeature() # Add a feature
             if flip_opt == 0 or flip_opt == 2:
-                if str(i) in flip_list:
+                if old_f_id in flip_list:
                     flip_geom = feature.geometry()
                     if flip_geom.isMultipart():
                         multi_geom = QgsMultiLineString()
