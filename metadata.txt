@@ -10,7 +10,7 @@ version=2.0
 author=Jannik Schilling
 email=jannik.schilling@uni-rostock.de
 
-about=This plugin creates a network with one outlet from a line layer (shapefile). A warning is generated when circles are found in the network. You can use the tools to show the flow path upstream or downstream of a segment in the network and accumulate flow/loads along the flow path. An instructional video can be found here: https://www.youtube.com/watch?v=3GBr57evQPI  (thanks to  Hans van der Kwast)
+about=This plugin creates a network with one outlet from a line layer (shapefile). A warning is generated when circles are found in the network. You can use the tools to show the flow path upstream or downstream of a segment in the network and accumulate flow/loads along the flow path. An instructional video can be found here: https://www.youtube.com/watch?v=3GBr57evQPI  (thanks to  Hans van der Kwast). First versions of this plugin have been developed within the project PROSPER-RO, funded by BMBF, grant number 033L212. New features and bugfixes (since version 1.9) have been added within the project OSWeGe, funded by BMUV, grant number 67DAS263
 
 tracker=https://github.com/Jannik-Schilling/WaterNetAnalyzer/issues
 repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
