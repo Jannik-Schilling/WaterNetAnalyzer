@@ -210,111 +210,152 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             else:
                 column_id = str(ft.attribute(idxid))
                 return [vert1, vert2, ft.id(), column_id]
+                
+        def get_id_and_vertice_if_connected(
+            cd_id,
+            search_geom,
+            finished_segm,
+            current_id,
+            flip_list
+        ):
+            """
+            :param int cd_id
+            :param QgsGeometry (polygon or point) search_geom
+            :param dict finished_segm
+            :param int current_id
+            :param list flip_list
+            :return: tuple (cd_id, connecting_point)
+            """
+            ft = raw_layer.getFeature(cd_id)
+            ft_data = get_features_data(ft)
+            # first vertex connecting
+            if search_geom.intersects(ft_data[0]):
+                if search_geom.intersects(ft_data[1]):
+                    raise QgsProcessingException(
+                        'Feature '+str(ft_data[-1])+'is a circle itself'
+                    )
+                else:
+                    flip_list.append(cd_id)
+                    finished_segm[cd_id] = [
+                        str(ft_data[-1]),
+                        current_id,
+                        str(ft_data[-1])
+                    ]
+                    # return the other vertex (connecting to the next feature)
+                    return (cd_id, ft_data[1])
+            # last vertex connecting
+            elif search_geom.intersects(ft_data[1]):
+                finished_segm[cd_id] = [
+                    str(ft_data[-1]),
+                    current_id,
+                    str(ft_data[-1])
+                ]
+                # return the other vertex (connecting to the next feature)
+                return (cd_id, ft_data[0])
+            else:
+                pass
 
-        def get_connected_ids(
+        def get_connected_list(
             connecting_point,
-            current_ft_id,
-            search_radius
+            current_id,
+            search_radius,
+            finished_segm,
+            flip_list
         ):
             '''
             Searches for connected features at the connecting point, except for the current feature; also returns the search area
             :param QgsGeometry (Point) connecting_point
-            :param int current_ft_id
-            :param QgsRectangle search_area
+            :param int current_id
+            :param float search_radius
+            :param dict finished_segm
+            :param list flip_list
+            :return: list
             '''
             if search_radius != 0:
-                search_area = connecting_point.buffer(search_radius, 10).boundingBox()
+                search_geom = connecting_point.buffer(search_radius, 10)
+                search_area = search_geom.boundingBox()
             else:
+                search_geom = connecting_point
                 search_area = connecting_point.boundingBox()
-            inters_list = sp_index.intersects(search_area)
-            if current_ft_id in inters_list:  # remove self
-                inters_list.remove(current_ft_id)
-            return inters_list, search_area
-            
-
-        def prepare_visit(
-            next_ft_id,
-            downstream_id,
-            search_area,
-            flip_list,
-            finished_segm,
-            finished_ids
-        ):
-            '''
-            prepares the required data for the next line segment or a segment which will be stored in the to do list
-            :param int next_ft_id
-            :param int downstream_id
-            :param QgsRectangle search_area
-            :param list flip_list
-            :param dict finished_segm
-            :param list finished_ids
-            :return list (next_data, next_connecting_point)
-            '''
-            next_ft = raw_layer.getFeature(next_ft_id)
-            next_data = get_features_data(next_ft)
-            finished_segm[next_data[2]] = [
-                        str(next_data[-1]),
-                        downstream_id,
-                        str(next_data[-1])
-                    ]
-            finished_ids.append(next_data[2])
-            if next_data[0].intersects(search_area):
-                next_connecting_point = next_data[1]
-                flip_list.append(next_ft_id)
-            else:
-                next_connecting_point = next_data[0]
-            return [next_data, next_connecting_point]
+            candidates_list = sp_index.intersects(search_area)
+            if current_id in candidates_list:  # remove self
+                candidates_list.remove(current_id)
+            connected_list = [
+                get_id_and_vertice_if_connected(
+                    cd_id,
+                    search_geom,
+                    finished_segm,
+                    current_id,
+                    flip_list
+                ) for cd_id in candidates_list
+            ]
+            return connected_list
 
 
         '''loop for each selected'''
         for network_number, sel_feat in enumerate(sel_feats):
             finished_ids = []  # list to recognise already visited features
             to_do_list = []  # empty list for tributaries to visit later
-            if multinetwork:
-                sel_feats_ids = sel_feats_ids[(network_number+1):]
+
 
             '''data of first segment'''
-            current_data = get_features_data(sel_feat)  # first_vertex, last_vertex, feature_id, (feature_name)
+            first_ft_data = get_features_data(sel_feat)  # first_vertex, last_vertex, feature_id, (feature_name)
             out_marker = "Out"  # mark segment as outlet
-            start_f_id = current_data[2]
-            finished_segm[current_data[2]] = [
-                        str(current_data[-1]),
+            start_f_id = first_ft_data[2]
+            finished_segm[first_ft_data[2]] = [
+                        str(first_ft_data[-1]),
                         out_marker,
-                        str(current_data[-1])
+                        str(first_ft_data[-1])
                     ]
-            finished_ids.append(current_data[2])
+            finished_ids.append(first_ft_data[2])
 
-            '''find connecting vertex of (first) current_data, add to flip_list if conn_vert is not vert1'''
-            conn_ids_0, search_area_0 = get_connected_ids(current_data[0], current_data[2], search_radius)
-            conn_ids_1, search_area_1 = get_connected_ids(current_data[1], current_data[2], search_radius)
+            '''find connecting vertex of (first) first_ft_data, add to flip_list if conn_vert is not vert1'''
+            connected_list_0 = get_connected_list(
+                first_ft_data[0],  # vertex0
+                first_ft_data[2],  # current_id
+                search_radius,
+                finished_segm,
+                flip_list
+            )
+            connected_list_1 = get_connected_list(
+                first_ft_data[1],
+                first_ft_data[2],
+                search_radius,
+                finished_segm,
+                flip_list
+            )
+            # remove none
+            connected_list_0 = [f for f in connected_list_0 if f]
+            connected_list_1 = [f for f in connected_list_1 if f]
             
-            if len(conn_ids_1) > 0:  # last vertex connecting
-                if len(conn_ids_0) > 0:  # both vertices connecting
+            if len(connected_list_1) > 0:  # last vertex connecting
+                if len(connected_list_0) > 0:  # both vertices connecting
                     feedback.reportError(
                         self.tr(
                             'The selected segment with id == {0} is connecting two segments.'
                             +' Please chose another segment in layer "{1}" or add a segment as a single outlet'
-                        ).format(current_data[2], parameters[self.INPUT_LAYER]))
+                        ).format(first_ft_data[2], parameters[self.INPUT_LAYER]))
                     raise QgsProcessingException()
                 else:
-                    flip_list.append(current_data[2])  # add id to flip list
-                    conn_ids = conn_ids_1
-                    search_area = search_area_1
+                    connected_list = connected_list_1
 
             else:  # first vertex connecting
-                conn_ids = conn_ids_0  
-                search_area = search_area_0
+                connected_list = connected_list_0  
+            current_id = start_f_id
+
             
+
             '''loop: while still connected features, add to finished_segm'''
             while True:
                 if feedback.isCanceled():
                     print('finished so far: '+ str(finished_ids))
-                    print('current id'+ str(current_data[2]))
+                    print('current feature id: '+ str(current_id))
                     break
 
                 '''check for interconnections between networks'''
                 if multinetwork:
-                    check_list = [f_id for f_id in conn_ids if f_id in sel_feats_ids]
+                    sel_feats_ids = sel_feats_ids[(network_number+1):]
+                    check_list = [f_id[0] for f_id in connected_list if f_id[0] in sel_feats_ids]
                     if check_list:
                         raise QgsProcessingException(
                             'The network which started with feature id = '
@@ -324,46 +365,49 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                             + '. Please deselect one of these features or disconnect the lines'
                         )
                         break
+                
+                '''check for circles'''
+                circle_closing_fts = [f_id[0] for f_id in connected_list if f_id[0] in finished_ids]
+                if len(circle_closing_fts) > 0:
+                    circ_list = circ_list + [[current_id, f_id] for f_id in circle_closing_fts]
+                    # delete from connected_list if part of a circle
+                    connected_list = [f_id for f_id in connected_list if not f_id[0] in finished_ids]
 
-                next_data_lists = [
-                    prepare_visit(
-                        next_ft_id,
-                        current_data[-1],
-                        search_area,
-                        flip_list,
-                        finished_segm,
-                        finished_ids
-                    ) for next_ft_id in conn_ids
-                ]
+                finished_ids = finished_ids+[f_id[0] for f_id in connected_list]
 
-                if len(conn_ids) == 0:
+                if len(connected_list) == 0:
                     if len(to_do_list)==0:
                         netw_dict[network_number] = finished_ids
                         break
                     else:
-                        current_data, connecting_point = to_do_list[0]
+                        current_id, connecting_point = to_do_list[0]
                         to_do_list = to_do_list[1:]
-                if len(conn_ids) == 1:
-                    current_data, connecting_point = next_data_lists[0]
-                if len(conn_ids) > 1:
-                    current_data, connecting_point = next_data_lists[0]
-                    to_do_list = to_do_list + next_data_lists[1:]
+                if len(connected_list) == 1:
+                    current_id, connecting_point = connected_list[0]
+                if len(connected_list) > 1:
+                    current_id, connecting_point = connected_list[0]
+                    to_do_list = to_do_list + connected_list[1:]
 
-                conn_ids, search_area = get_connected_ids(connecting_point, current_data[2], search_radius)
-
-                '''check for circles'''
-                circle_closing_fts = [f_id for f_id in conn_ids if f_id in finished_ids]
-                if len(circle_closing_fts) > 0:
-                    circ_list = circ_list + [[current_data[2], f_id] for f_id in circle_closing_fts]
-                    conn_ids = [f_id for f_id in conn_ids if not f_id in finished_ids]
+                # get list of next connected features
+                connected_list = get_connected_list(
+                    connecting_point,
+                    current_id,
+                    search_radius,
+                    finished_segm,
+                    flip_list
+                )
+                # remove none
+                connected_list = [f for f in connected_list if f]
 
 
         '''feedback for circles'''
-        if len (circ_list)>0:
+        if len(circ_list)>0:
+            print(circ_list)
             circ_dict = Counter(tuple(sorted(lst)) for lst in circ_list)
-            feedback.pushWarning("Warning: Circle closed at NET_ID = ")
-            for f_ids, counted in circ_dict.items():
-                if counted > 1:
+            circ_list_out = [f_ids for f_ids, counted in circ_dict.items() if counted > 1]
+            if len(circ_list_out)>0:
+                feedback.pushWarning("Warning: Circle closed at NET_ID = ")
+                for f_ids in circ_list_out:
                     feedback.pushWarning(self.tr('{0}, ').format(str(f_ids)))
 
 
