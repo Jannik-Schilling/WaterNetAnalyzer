@@ -216,14 +216,16 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             search_geom,
             finished_segm,
             current_id,
-            flip_list
+            flip_list,
+            finished_ids
         ):
             """
-            :param int cd_id
+            :param int cd_id 
             :param QgsGeometry (polygon or point) search_geom
             :param dict finished_segm
             :param int current_id
             :param list flip_list
+            :param list finished_ids
             :return: tuple (cd_id, connecting_point)
             """
             ft = raw_layer.getFeature(cd_id)
@@ -232,35 +234,40 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             if search_geom.intersects(ft_data[0]):
                 if search_geom.intersects(ft_data[1]):
                     raise QgsProcessingException(
-                        'Feature '+str(ft_data[-1])+'is a circle itself'
+                        'Feature '+str(ft_data[-1])+' is a circle itself'
                     )
                 else:
                     flip_list.append(cd_id)
+                    # return the other vertex (connecting to the next feature)
+                    result_tuple = (cd_id, ft_data[1])
+            # last vertex connecting
+            elif search_geom.intersects(ft_data[1]):
+                # return the other vertex (connecting to the next feature)
+                result_tuple = (cd_id, ft_data[0])
+            else:
+                result_tuple = None
+            # check for circles
+            if result_tuple:
+                if cd_id in finished_ids:  # already visited -> cirlce
+                    circ_list.append([current_id, cd_id])
+                    # delete from connected_list if part of a circle
+                    result_tuple = None
+                else:
                     finished_segm[cd_id] = [
                         str(ft_data[-1]),
                         current_id,
                         str(ft_data[-1])
                     ]
-                    # return the other vertex (connecting to the next feature)
-                    return (cd_id, ft_data[1])
-            # last vertex connecting
-            elif search_geom.intersects(ft_data[1]):
-                finished_segm[cd_id] = [
-                    str(ft_data[-1]),
-                    current_id,
-                    str(ft_data[-1])
-                ]
-                # return the other vertex (connecting to the next feature)
-                return (cd_id, ft_data[0])
-            else:
-                pass
+                    finished_ids.append(cd_id)
+            return result_tuple
 
         def get_connected_list(
             connecting_point,
             current_id,
             search_radius,
             finished_segm,
-            flip_list
+            flip_list,
+            finished_ids
         ):
             '''
             Searches for connected features at the connecting point, except for the current feature; also returns the search area
@@ -269,6 +276,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             :param float search_radius
             :param dict finished_segm
             :param list flip_list
+            :param list finished_ids
             :return: list
             '''
             if search_radius != 0:
@@ -286,7 +294,8 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                     search_geom,
                     finished_segm,
                     current_id,
-                    flip_list
+                    flip_list,
+                    finished_ids
                 ) for cd_id in candidates_list
             ]
             return connected_list
@@ -303,10 +312,10 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             out_marker = "Out"  # mark segment as outlet
             start_f_id = first_ft_data[2]
             finished_segm[first_ft_data[2]] = [
-                        str(first_ft_data[-1]),
-                        out_marker,
-                        str(first_ft_data[-1])
-                    ]
+                str(first_ft_data[-1]),
+                out_marker,
+                str(first_ft_data[-1])
+            ]
             finished_ids.append(first_ft_data[2])
 
             '''find connecting vertex of (first) first_ft_data, add to flip_list if conn_vert is not vert1'''
@@ -315,14 +324,16 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 first_ft_data[2],  # current_id
                 search_radius,
                 finished_segm,
-                flip_list
+                flip_list,
+                finished_ids
             )
             connected_list_1 = get_connected_list(
                 first_ft_data[1],
                 first_ft_data[2],
                 search_radius,
                 finished_segm,
-                flip_list
+                flip_list,
+                finished_ids
             )
             # remove none
             connected_list_0 = [f for f in connected_list_0 if f]
@@ -365,15 +376,6 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                             + '. Please deselect one of these features or disconnect the lines'
                         )
                         break
-                
-                '''check for circles'''
-                circle_closing_fts = [f_id[0] for f_id in connected_list if f_id[0] in finished_ids]
-                if len(circle_closing_fts) > 0:
-                    circ_list = circ_list + [[current_id, f_id] for f_id in circle_closing_fts]
-                    # delete from connected_list if part of a circle
-                    connected_list = [f_id for f_id in connected_list if not f_id[0] in finished_ids]
-
-                finished_ids = finished_ids+[f_id[0] for f_id in connected_list]
 
                 if len(connected_list) == 0:
                     if len(to_do_list)==0:
@@ -394,7 +396,8 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                     current_id,
                     search_radius,
                     finished_segm,
-                    flip_list
+                    flip_list,
+                    finished_ids
                 )
                 # remove none
                 connected_list = [f for f in connected_list if f]
@@ -402,7 +405,6 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
 
         '''feedback for circles'''
         if len(circ_list)>0:
-            print(circ_list)
             circ_dict = Counter(tuple(sorted(lst)) for lst in circ_list)
             circ_list_out = [f_ids for f_ids, counted in circ_dict.items() if counted > 1]
             if len(circ_list_out)>0:
