@@ -31,6 +31,10 @@ __copyright__ = '(C) 2019 by Jannik Schilling'
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
+try:
+    from qgis.PyQt.QtCore import QMetaType
+except Exception:
+    pass
 from qgis.core import (
     QgsProcessingAlgorithm,
     QgsProcessing,
@@ -185,9 +189,14 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         # append fields
         for field in raw_fields:
             out_fields.append(QgsField(field.name(), field.type()))
-        out_fields.append(QgsField('NET_ID', QVariant.String))
-        out_fields.append(QgsField('NET_TO', QVariant.String))
-        out_fields.append(QgsField('NET_FROM', QVariant.String))
+        try:
+            out_fields.append(QgsField('NET_ID', QMetaType.QString))
+            out_fields.append(QgsField('NET_TO', QMetaType.QString))
+            out_fields.append(QgsField('NET_FROM', QMetaType.QString))
+        except Exception:  # for QGIS prior to version 3.38
+            out_fields.append(QgsField('NET_ID', QVariant.String))
+            out_fields.append(QgsField('NET_TO', QVariant.String))
+            out_fields.append(QgsField('NET_FROM', QVariant.String))
         # lists for results
         finished_segm = {}  # {qgis id: [net_id, net_to, net_from]}
         netw_dict = {}  # a dict for individual network numbers
@@ -359,8 +368,10 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             '''loop: while still connected features, add to finished_segm'''
             while True:
                 if feedback.isCanceled():
-                    print('finished so far: '+ str(finished_ids))
-                    print('current feature id: '+ str(current_id))
+                    feedback.reportError(
+                        'Finished so far: '+ str(finished_ids)
+                        + '. \nCurrent feature id: '+ str(current_id)
+                    )
                     break
 
                 '''check for interconnections between networks'''

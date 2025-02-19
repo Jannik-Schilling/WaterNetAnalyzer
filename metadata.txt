@@ -20,7 +20,7 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=2.1 2025-02 fix for WaterNetworkConstructor in sinous sections
+changelog=2.1 2025-02 fix for WaterNetworkConstructor in sinuous sections
       
 # Tags are comma separated with spaces allowed
 
