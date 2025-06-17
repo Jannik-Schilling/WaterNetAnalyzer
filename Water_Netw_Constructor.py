@@ -229,7 +229,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             finished_ids
         ):
             """
-            :param int cd_id 
+            :param int cd_id: id of possibly connected feature ('candidate')
             :param QgsGeometry (polygon or point) search_geom
             :param dict finished_segm
             :param int current_id
@@ -246,7 +246,8 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                         'Feature '+str(ft_data[-1])+' is a circle itself'
                     )
                 else:
-                    flip_list.append(cd_id)
+                    if not cd_id in finished_ids:  # if not circle (see below)
+                        flip_list.append(cd_id)
                     # return the other vertex (connecting to the next feature)
                     result_tuple = (cd_id, ft_data[1])
             # last vertex connecting
@@ -357,10 +358,11 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                         ).format(first_ft_data[2], parameters[self.INPUT_LAYER]))
                     raise QgsProcessingException()
                 else:
+                    flip_list.append(start_f_id)
                     connected_list = connected_list_1
 
             else:  # first vertex connecting
-                connected_list = connected_list_0  
+                connected_list = connected_list_0
             current_id = start_f_id
 
             
