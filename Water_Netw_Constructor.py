@@ -73,7 +73,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             QgsProcessingParameterVectorLayer(
                 self.INPUT_LAYER,
                 self.tr('Input line layer'),
-                [QgsProcessing.TypeVectorLine]
+                [QgsProcessing.SourceType.TypeVectorLine]
             )
         )
         self.addParameter(
@@ -89,7 +89,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 self.INPUT_ID_COL,
                 self.tr("Existing ID Column"),
                 parentLayerParameterName = self.INPUT_LAYER,
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.DataType.Any,
                 optional = True
             )
         )
@@ -97,7 +97,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             rad_type = Qgis.ProcessingNumberParameterType.Double
         except:
             # for qgis prior to version 3.36
-            rad_type = QgsProcessingParameterNumber.Double
+            rad_type = QgsProcessingParameterNumber.Type.Double
         param_Radius = QgsProcessingParameterNumber(
                 self.SEARCH_RADIUS,
                 self.tr("Search Radius for Connections"),
@@ -107,7 +107,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 maxValue=10,
                 optional=True
             )
-        param_Radius.setFlags(param_Radius.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        param_Radius.setFlags(param_Radius.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(param_Radius)
 
         param_multiple_netw = QgsProcessingParameterBoolean(
@@ -116,7 +116,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
                 defaultValue=False,
                 optional=True
             )
-        param_multiple_netw.setFlags(param_multiple_netw.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        param_multiple_netw.setFlags(param_multiple_netw.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(param_multiple_netw)
         
         self.addParameter(
@@ -190,9 +190,9 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
         for field in raw_fields:
             out_fields.append(QgsField(field.name(), field.type()))
         try:
-            out_fields.append(QgsField('NET_ID', QMetaType.QString))
-            out_fields.append(QgsField('NET_TO', QMetaType.QString))
-            out_fields.append(QgsField('NET_FROM', QMetaType.QString))
+            out_fields.append(QgsField('NET_ID', QMetaType.Type.QString))
+            out_fields.append(QgsField('NET_TO', QMetaType.Type.QString))
+            out_fields.append(QgsField('NET_FROM', QMetaType.Type.QString))
         except Exception:  # for QGIS prior to version 3.38
             out_fields.append(QgsField('NET_ID', QVariant.String))
             out_fields.append(QgsField('NET_TO', QVariant.String))
@@ -469,7 +469,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             else:
                 ft_data = get_features_data(feature)
                 outFt.setAttributes(feature.attributes()+[str(ft_data[-1]), 'unconnected', 'unconnected'])
-            sink.addFeature(outFt, QgsFeatureSink.FastInsert)
+            sink.addFeature(outFt, QgsFeatureSink.Flag.FastInsert)
 
 
         return {self.OUTPUT: dest_id}

@@ -75,7 +75,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
             QgsProcessingParameterVectorLayer(
                 self.INPUT_LAYER,
                 self.tr('Water Network Layer'),
-                [QgsProcessing.TypeVectorLine]
+                [QgsProcessing.SourceType.TypeVectorLine]
             )
         )
         
@@ -93,7 +93,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                 self.tr("ID Field/NET_ID"),
                 parentLayerParameterName = self.INPUT_LAYER,
                 defaultValue = 'NET_ID',
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.DataType.Any,
             )
         )
         
@@ -103,7 +103,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                 self.tr("Prev Node Field/NET_FROM"),
                 parentLayerParameterName = self.INPUT_LAYER,
                 defaultValue = 'NET_FROM',
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.DataType.Any,
             )
         )
         
@@ -113,7 +113,7 @@ class UpstreamDownstream(QgsProcessingAlgorithm):
                 self.tr("Next Node Field/NET_TO"),
                 parentLayerParameterName = self.INPUT_LAYER,
                 defaultValue = 'NET_TO',
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.DataType.Any,
             )
         )
 

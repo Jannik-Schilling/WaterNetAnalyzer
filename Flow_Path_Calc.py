@@ -76,7 +76,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             QgsProcessingParameterVectorLayer(
                 self.INPUT_LAYER,
                 self.tr('The water network'),
-                [QgsProcessing.TypeVectorLine]
+                [QgsProcessing.SourceType.TypeVectorLine]
             )
         )
         
@@ -85,7 +85,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_CALC,
                 self.tr("Field to calculate"),
                 parentLayerParameterName = self.INPUT_LAYER,
-                type = QgsProcessingParameterField.Numeric,
+                type = QgsProcessingParameterField.DataType.Numeric,
             )
         )
         
@@ -94,7 +94,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_ID,
                 self.tr("ID Field/NET_ID"),
                 parentLayerParameterName = self.INPUT_LAYER,
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.DataType.Any,
                 defaultValue = 'NET_ID'
             )
         )
@@ -104,7 +104,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_PREV,
                 self.tr("Prev Node Field/NET_FROM"),
                 parentLayerParameterName = self.INPUT_LAYER,
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.DataType.Any,
                 defaultValue = 'NET_FROM'
             )
         )
@@ -114,7 +114,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
                 self.INPUT_FIELD_NEXT,
                 self.tr("Next Node Field/NET_TO"),
                 parentLayerParameterName = self.INPUT_LAYER,
-                type = QgsProcessingParameterField.Any,
+                type = QgsProcessingParameterField.DataType.Any,
                 defaultValue = 'NET_TO'
             )
         )
@@ -261,7 +261,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             outFt.setGeometry(feature.geometry())
             outFt.setAttributes(feature.attributes())
             outFt.setAttributes(feature.attributes()+[DataArr[i,3]])
-            sink.addFeature(outFt, QgsFeatureSink.FastInsert)
+            sink.addFeature(outFt, QgsFeatureSink.Flag.FastInsert)
             feedback.setProgress((i+1)*parts)
 
         return {self.OUTPUT: dest_id}
