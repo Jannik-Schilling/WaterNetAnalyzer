@@ -20,7 +20,7 @@ repository=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 
 hasProcessingProvider=yes
 # Uncomment the following line and add your changelog:
-changelog=2.2 2025-03 support for QGIS 4.0
+changelog=2.2 2026-03 support for QGIS 4.0
       
 # Tags are comma separated with spaces allowed
 
@@ -30,7 +30,7 @@ homepage=https://github.com/Jannik-Schilling/WaterNetAnalyzer
 category=Analysis
 icon=icons/icon.png
 # experimental flag
-experimental=False
+experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
