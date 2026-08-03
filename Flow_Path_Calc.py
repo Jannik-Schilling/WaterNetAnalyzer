@@ -276,7 +276,7 @@ class FlowPathCalc(QgsProcessingAlgorithm):
             outFt.setGeometry(feature.geometry())
             outFt.setAttributes(feature.attributes())
             outFt.setAttributes(feature.attributes()+[DataArr[i,3]])
-            sink.addFeature(outFt, QgsFeatureSink.FastInsert)
+            sink.addFeature(outFt, QgsFeatureSink.Flag.FastInsert)
             feedback.setProgress((i+1)*parts)
 
         return {self.OUTPUT: dest_id}

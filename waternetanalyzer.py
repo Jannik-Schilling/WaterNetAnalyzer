@@ -57,7 +57,5 @@ class WaterNetsAnalyzer(object):
         self.initProcessing()
 
     def unload(self):
-        try:
-            QgsApplication.processingRegistry().removeProvider(self.provider)
-        except:
-            pass
+        QgsApplication.processingRegistry().removeProvider(self.provider)
+

@@ -481,10 +481,7 @@ class WaterNetwConstructor(QgsProcessingAlgorithm):
             else:
                 ft_data = get_features_data(feature)
                 outFt.setAttributes(feature.attributes()+[str(ft_data[-1]), 'unconnected', 'unconnected'])
-            if qgis_4_x:
-                sink.addFeature(outFt, QgsFeatureSink.Flag.FastInsert)
-            else:
-                sink.addFeature(outFt, QgsFeatureSink.FastInsert)
+            sink.addFeature(outFt, QgsFeatureSink.Flag.FastInsert)
 
 
         return {self.OUTPUT: dest_id}
